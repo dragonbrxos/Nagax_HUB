@@ -1,4 +1,4 @@
--- NAGAX HUB | AUTO MODE (KAITUN)
+-- NAGAX HUB | KAITUN (AUTO MODE)
 local Main = loadstring(game:HttpGet("https://raw.githubusercontent.com/dragonbrxos/Nagax_HUB/main/Scripts/Main.lua"))()
 Main:StartAuto()
-print("NAGAX HUB: MODO TOTALMENTE AUTOMÁTICO ATIVADO!")
+print("NAGAX HUB: MODO KAITUN (INTELIGÊNCIA ARTIFICIAL) ATIVADO!")

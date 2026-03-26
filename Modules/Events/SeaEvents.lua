@@ -1,4 +1,71 @@
--- NAGAX HUB | SEA EVENTS
+-- NAGAX HUB | SEA EVENTS (INTEGRAL)
+Event:Seperator("Boats Modify")
+
+BoatsName = {}
+for i,v in pairs(game:GetService("Workspace").Boats:GetChildren()) do  
+    table.insert(BoatsName ,v.Name)
+end
+
+local Boats = Event:Dropdown("Select Boats", BoatsName, function(value)
+    _G.SelectB = value
+end)
+
+Event:Button("Refresh Boats List", function()
+    BoatsName = {}
+    Boats:Clear()
+    for i,v in pairs(game:GetService("Workspace").Boats:GetChildren()) do  
+       Boats:Add(v.Name)
+    end
+end)
+
+Event:Toggle("Teleport To Selected Boats", false, function(value)
+    _G.TPB = bool       
+    StopTween(_G.TPB)
+    if _G.TPB then
+        _G.Boats = true
+        while _G.Boats do wait()
+            Distance = (game:GetService("Workspace").Boats[_G.SelectB].VehicleSeat.Position - game.Players.LocalPlayer.Character.HumanoidRootPart.Position).Magnitude
+            Speed = 220
+            tweenService, tweenInfo = game:GetService("TweenService"), TweenInfo.new(Distance/Speed, Enum.EasingStyle.Linear)
+            tween = tweenService:Create(game:GetService("Players")["LocalPlayer"].Character.HumanoidRootPart, tweenInfo, {CFrame = game:GetService("Workspace").Boats[_G.SelectB].VehicleSeat.CFrame})
+            tween:Play()
+            _G.Clip = true
+            wait(Distance/Speed)
+        end
+    elseif _G.TPB == false then
+        _G.Boats = false
+        while _G.Boats do wait()
+            Distance = (game:GetService("Workspace").Boats[_G.SelectB].VehicleSeat.Position - game.Players.LocalPlayer.Character.HumanoidRootPart.Position).Magnitude
+            Speed = 220
+            tweenService, tweenInfo = game:GetService("TweenService"), TweenInfo.new(Distance/Speed, Enum.EasingStyle.Linear)
+            tween = tweenService:Create(game:GetService("Players")["LocalPlayer"].Character.HumanoidRootPart, tweenInfo, {CFrame = game:GetService("Workspace").Boats[_G.SelectB].VehicleSeat.CFrame})
+            tween:Play()
+            _G.Clip = true
+            wait(Distance/Speed)
+        end
+        tweenService, tweenInfo = game:GetService("TweenService"), TweenInfo.new(.1, Enum.EasingStyle.Linear)
+        tween = tweenService:Create(game:GetService("Players")["LocalPlayer"].Character.HumanoidRootPart, tweenInfo, {CFrame = game.Players.LocalPlayer.Character.HumanoidRootPart.CFrame})
+        tween:Play()
+        _G.Clip = false
+    end
+end)
+
+Event:Button("Bring Selected Boats", function()
+    game:GetService("Players")["LocalPlayer"].Character.HumanoidRootPart.CFrame = game:GetService("Workspace").Boats[_G.SelectB].VehicleSeat.CFrame
+end)
+
+Event:Toggle("Spectate Selected Boats", false, function(value)
+    Sp = value
+    local plr1 = game.Players.LocalPlayer.Character.Humanoid
+    local plr2 = game:GetService("Workspace").Boats:FindFirstChild(_G.SelectB)
+    repeat wait(.1)
+       game.Workspace.Camera.CameraSubject = game:GetService("Workspace").Boats[_G.SelectB].VehicleSeat
+    until Sp == false 
+    game.Workspace.Camera.CameraSubject = game.Players.LocalPlayer.Character.Humanoid
+end)
+
+Event:Seperator("Rough Sea")
+    
 Event:Toggle("Auto Drive Boat", _G.MatsuAutoDriveBoat,function(value)
          _G.MatsuAutoDriveBoat = value
         StopTween( _G.MatsuAutoDriveBoat)

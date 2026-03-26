@@ -1,4 +1,6 @@
 -- Nagax HUB: Organized Loader
+-- This script loads the modularized Nagax HUB from GitHub.
+
 repeat wait() until game.Players.LocalPlayer
 
 -- Configuration
@@ -7,6 +9,7 @@ getgenv().NagaxConfig = {
     SetFFlag = true
 }
 
+-- Loader Function
 local function LoadFromGitHub(path)
     local baseUrl = "https://raw.githubusercontent.com/dragonbrxos/Nagax_HUB/main/"
     local success, content = pcall(function()
@@ -24,6 +27,19 @@ local function LoadFromGitHub(path)
     end
 end
 
-print("Nagax HUB: Loading full integrated core...")
-LoadFromGitHub("Modules/Core.lua")
+print("Nagax HUB: Loading core modules...")
+
+-- Load Bypass and Utility functions first
+LoadFromGitHub("Modules/Bypass.lua")
+LoadFromGitHub("Modules/Utils.lua")
+
+-- Load the refactored core logic (remaining code after extraction)
+LoadFromGitHub("Modules/Core_Refactored.lua")
+
+-- Load specific feature modules
+LoadFromGitHub("Modules/Quests.lua")
+LoadFromGitHub("Modules/ESP.lua")
+
+-- Add other module loaders as they are created
+
 print("Nagax HUB: Loaded Successfully!")

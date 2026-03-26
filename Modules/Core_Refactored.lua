@@ -2,7 +2,7 @@
 repeat
     wait()
 until game.Players.LocalPlayer
-local a = "https://you.whimper.xyz/sources/pihub/lib/bf.lua"
+local a = "https://raw.githubusercontent.com/dragonbrxos/Nagax_HUB/refs/heads/main/Modules/Library.lua"
 local a = loadstring(game:HttpGet(a,true))()
 local a = a:Window("Nagax HUB")
 local Set = a:Tab("Settings Farm ", "rbxassetid://18899804355")

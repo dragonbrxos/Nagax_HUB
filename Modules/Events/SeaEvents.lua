@@ -1986,3 +1986,26 @@ game:GetService("StarterGui"):SetCore("SendNotification", {
     Icon = "rbxassetid://18899804355",
     Duration = 1
 })
+-- NAGAX HUB | EXPORT MODULE
+local SeaEventsModule = {}
+
+function SeaEventsModule.CheckSpecial()
+    -- Lógica para verificar eventos especiais (Lua Cheia, Sea Beast, etc.)
+    -- Esta função é chamada pelo Smart Orchestrator (Main.lua)
+    
+    local isFullMoon = game:GetService("Lighting").FullMoon.Value
+    if isFullMoon then
+        return true, "Lua Cheia Detectada!"
+    end
+    
+    -- Verifica se há Sea Beasts ou outros eventos no Workspace
+    for _, v in pairs(game:GetService("Workspace").Enemies:GetChildren()) do
+        if v.Name == "Sea Beast" or v.Name == "Terrorshark" or v.Name == "Pirate Ship" then
+            return true, "Evento de Mar Detectado: " .. v.Name
+        end
+    end
+    
+    return false
+end
+
+return SeaEventsModule

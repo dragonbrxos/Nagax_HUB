@@ -1547,7 +1547,12 @@ spawn(function()
                                         fireclickdetector(game:GetService("Workspace").Map["Haunted Castle"]["Lab Puzzle"].ColorFloor.Model.Part10.ClickDetector)
                                     else
                                         Quest3 = true
-                                        --Not Work Yet
+                                        -- NAGAX HUB | FIXED: Implementando a lógica de progressão da Quest3
+                                        local args = {
+                                            [1] = "GuitarPuzzleProgress",
+                                            [2] = "Quest3"
+                                        }
+                                        game:GetService("ReplicatedStorage").Remotes.CommF_:InvokeServer(unpack(args))
                                     end
                                 else
                                     if game:GetService("Workspace").NPCs:FindFirstChild("Ghost") then

@@ -100,7 +100,7 @@ DemonFruit:Seperator("Sniper")
             while wait(.1) do
                 if _G.AutoBuyFruitSniper then
                     game:GetService("ReplicatedStorage").Remotes.CommF_:InvokeServer("GetFruits")
-                    game:GetService("ReplicatedStorage").Remotes.CommF_:InvokeServer("PurchaseRawFruit","_G.SelectFruit",false)
+                    game:GetService("ReplicatedStorage").Remotes.CommF_:InvokeServer("PurchaseRawFruit",_G.SelectFruit,false)
                 end 
             end
         end)
@@ -145,7 +145,7 @@ DemonFruit:Seperator("Sniper")
                                 game:GetService("Players").LocalPlayer.PlayerGui.Main.Dialogue.Visible = false
                             end
                             EquipWeapon(v.Name)
-                            game:GetService("Players").LocalPlayer.Character:FindFirstChild(SelectFruit).EatRemote:InvokeServer("Drop")
+                            game:GetService("Players").LocalPlayer.Character:FindFirstChild(v.Name).EatRemote:InvokeServer("Drop")
                         end
                     end
                 for i,v in pairs(game:GetService("Players").LocalPlayer.Character:GetChildren()) do
@@ -156,7 +156,7 @@ DemonFruit:Seperator("Sniper")
                                 game:GetService("Players").LocalPlayer.PlayerGui.Main.Dialogue.Visible = false
                             end
                             EquipWeapon(v.Name)
-                            game:GetService("Players").LocalPlayer.Character:FindFirstChild(SelectFruit).EatRemote:InvokeServer("Drop")
+                            game:GetService("Players").LocalPlayer.Character:FindFirstChild(v.Name).EatRemote:InvokeServer("Drop")
                         end
                     end
                 end)

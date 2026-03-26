@@ -1,4 +1,5 @@
 -- NAGAX HUB | AUTO STATS
+local PointStats = 1 -- Padrão: 1 ponto por vez
 local Pointstat = Stats:Label("")
 spawn(function()
     while wait() do
@@ -76,7 +77,7 @@ end)
 
 spawn(function()
     while wait() do
-        if game.Players.localPlayer.Data.Points.Value >= PointStats then
+        if game.Players.localPlayer.Data.Points.Value >= (PointStats or 1) then
             if melee then
                 local args = {
                     [1] = "AddPoint",

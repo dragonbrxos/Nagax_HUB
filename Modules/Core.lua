@@ -1,4 +1,4 @@
--- Nagax HUB: Full Original Script
+-- Nagax HUB: Full Integrated Core
 repeat
     wait()
 until game.Players.LocalPlayer

@@ -1,5 +1,5 @@
 local CombatModule = {}
-CombatModule.Bypass = function()
+CombatModule.Initialize = function()
 if getrawmetatable and setreadonly and newcclosure then
     grm = getrawmetatable(game)
     setreadonly(grm, false)

@@ -1,5 +1,8 @@
 local World1Quests = {}
-World1Quests.Data = {
+World1Quests.CheckQuest = function()
+function CheckQuest() 
+    MyLevel = game:GetService("Players").LocalPlayer.Data.Level.Value
+    if World1 then
         if MyLevel == 1 or MyLevel <= 9 then
             Mon = "Bandit"
             LevelQuest = 1
@@ -125,5 +128,5 @@ World1Quests.Data = {
             NameQuest = "MagmaQuest"
             NameMon = "Military Spy"
             CFrameQuest = CFrame.new(-5313.37012, 10.9500084, 8515.29395, -0.499959469, 0, 0.866048813, 0, 1, 0, -0.866048813, 0, -0.499959469)
-}
+end
 return World1Quests

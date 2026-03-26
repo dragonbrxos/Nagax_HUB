@@ -1,5 +1,5 @@
 local World3Quests = {}
-World3Quests.Data = {
+World3Quests.CheckQuest = function()
             LevelQuest = 2
             NameQuest = "PiratePortQuest"
             NameMon = "Pistol Billionaire"
@@ -250,5 +250,5 @@ end
 function Hop()
     local PlaceID = game.PlaceId
     local AllIDs = {}
-}
+end
 return World3Quests

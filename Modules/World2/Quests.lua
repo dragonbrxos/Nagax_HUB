@@ -1,5 +1,5 @@
 local World2Quests = {}
-World2Quests.Data = {
+World2Quests.CheckQuest = function()
             CFrameMon = CFrame.new(-5802.8681640625, 86.26241302490234, 8828.859375)
         elseif MyLevel == 375 or MyLevel <= 399 then
             Mon = "Fishman Warrior"
@@ -251,5 +251,5 @@ World2Quests.Data = {
             CFrameMon = CFrame.new(-245.9963836669922, 47.30615234375, 5584.1005859375)
         elseif MyLevel == 1525 or MyLevel <= 1574 then
             Mon = "Pistol Billionaire"
-}
+end
 return World2Quests

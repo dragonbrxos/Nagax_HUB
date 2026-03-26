@@ -1,21 +1,21 @@
-# 🐉 Nagax HUB | Blox Fruits Script Hub
+# Nagax HUB | Blox Fruits Script Hub
 
-Bem-vindo ao **Nagax HUB**, o script hub definitivo para Blox Fruits, projetado para oferecer a melhor experiência tanto em automação inteligente (**Kaitun**) quanto em controle manual total através de uma interface intuitiva.
+Bem-vindo ao Nagax HUB, o script hub para Blox Fruits, projetado para oferecer a melhor experiência tanto em automação inteligente (Kaitun) quanto em controle manual total através de uma interface intuitiva.
 
 ---
 
-## 🚀 Como Usar
+## Como Usar
 
 Para utilizar o Nagax HUB, escolha um dos modos abaixo e execute o script correspondente no seu executor (Synapse, Fluxus, Delta, etc.):
 
-### 🤖 Modo Kaitun (Automático)
-Este modo utiliza o **Smart Orchestrator** para tomar decisões inteligentes. Ele prioriza eventos especiais (Lua Cheia, Sea Beasts) e faz o farm de níveis e itens de forma otimizada.
+### Modo Kaitun (Automático)
+Este modo utiliza o Smart Orchestrator para tomar decisões inteligentes. Ele prioriza eventos especiais (Lua Cheia, Sea Beasts) e faz o farm de níveis e itens de forma otimizada.
 
 ```lua
 loadstring(game:HttpGet("https://raw.githubusercontent.com/dragonbrxos/Nagax_HUB/main/Scripts/Auto.lua"))()
 ```
 
-### 🎮 Modo Manual (Interface Completa)
+### Modo Manual (Interface Completa)
 Abre a interface gráfica (UI) com todas as abas e configurações disponíveis para controle total do jogador.
 
 ```lua
@@ -24,7 +24,7 @@ loadstring(game:HttpGet("https://raw.githubusercontent.com/dragonbrxos/Nagax_HUB
 
 ---
 
-## 🛠️ Funcionalidades Principais
+## Funcionalidades Principais
 
 | Módulo | Descrição |
 | :--- | :--- |
@@ -37,17 +37,17 @@ loadstring(game:HttpGet("https://raw.githubusercontent.com/dragonbrxos/Nagax_HUB
 
 ---
 
-## 📋 Requisitos e Segurança
+## Requisitos e Segurança
 
 *   **Executor:** Necessário um executor de scripts compatível com nível 7 ou superior.
 *   **Anti-Cheat:** O script já inclui um bypass integrado para detecção de teleporte e velocidade.
-*   **Safe Farm:** Recomendamos manter a opção *Safe Farm* ativada para minimizar riscos de banimento.
+*   **Safe Farm:** Recomendamos manter a opção Safe Farm ativada para minimizar riscos de banimento.
 
 ---
 
-## 🔧 Estrutura do Repositório
+## Estrutura do Repositório
 
-*   `/Scripts`: Contém os arquivos de inicialização (`Main.lua`, `Auto.lua`, `Manual.lua`).
+*   `/Scripts`: Contém os arquivos de inicialização (Main.lua, Auto.lua, Manual.lua).
 *   `/Modules`: Contém a lógica individual de cada funcionalidade (Combat, Farm, Fruits, etc.).
 
 ---

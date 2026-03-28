@@ -291,7 +291,7 @@ sidebarBorder.Size             = UDim2.new(0,1,1,0)
 sidebarBorder.Position         = UDim2.new(1,-1,0,0)
 sidebarBorder.BackgroundColor3 = C.acc3
 sidebarBorder.BorderSizePixel  = 0
-sidebarBorder.Parent           = sidebar
+sidebarBorder.Parent           = body
 
 local sidebarPad = Instance.new("UIPadding")
 sidebarPad.PaddingTop    = UDim.new(0,6)

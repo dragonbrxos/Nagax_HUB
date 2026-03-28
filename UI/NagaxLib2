@@ -1,6 +1,3 @@
--- NagaxLib v7 - Versão Robusta e Atualizada
--- Sistema anti-falha com verificação de elementos e retry automático
-
 local NagaxLib = {}
 NagaxLib.__index = NagaxLib
 

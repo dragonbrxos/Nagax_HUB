@@ -68,10 +68,11 @@ sg.IgnoreGuiInset = true
 sg.Parent         = playerGui
 
 -- ── Janela principal ─────────────────────────────────────────
-local WIN_W, WIN_H = 680, 470
+local WIN_W, WIN_H = 560, 390
 local HEADER_H     = 44
 local SIDEBAR_W    = 148
 local STATUS_H     = 22
+local WIN_SCALE    = 1.0  -- escala atual (alterada pelo slider de tamanho)
 
 local win = Instance.new("Frame")
 win.Name             = "Win"
@@ -81,7 +82,7 @@ win.BackgroundColor3 = C.bg
 win.BorderSizePixel  = 0
 win.ClipsDescendants = true
 win.Active           = true
-win.Draggable        = true
+win.Draggable        = false  -- controlado pelo toggle de Drag
 win.Parent           = sg
 corner(win, 12)
 stroke(win, 1, C.bdr)
@@ -199,10 +200,12 @@ minBtn.MouseLeave:Connect(function() tween(minBtn,{BackgroundColor3=C.bg4}) end)
 local minimized = false
 minBtn.MouseButton1Click:Connect(function()
     minimized = not minimized
+    local curW = win.Size.X.Offset
     if minimized then
-        tween(win, {Size=UDim2.new(0,WIN_W,0,HEADER_H)}, 0.2)
+        tween(win, {Size=UDim2.new(0,curW,0,HEADER_H)}, 0.2)
     else
-        tween(win, {Size=UDim2.new(0,WIN_W,0,WIN_H)}, 0.2)
+        local curH = math.floor(WIN_H * (curW / WIN_W))
+        tween(win, {Size=UDim2.new(0,curW,0,curH)}, 0.2)
     end
 end)
 
@@ -223,30 +226,38 @@ corner(customBtn, 5)
 customBtn.MouseEnter:Connect(function() tween(customBtn,{BackgroundColor3=Color3.fromRGB(58,58,85)}) end)
 customBtn.MouseLeave:Connect(function() tween(customBtn,{BackgroundColor3=C.bg4}) end)
 
--- ── Drag (desativado por padrao) ──────────────────────────────
+-- ── Drag manual (desativado por padrao) ──────────────────────
 local dragEnabled = false
 local dragging    = false
 local dragStart, winStart
+
+-- Desativa o Draggable nativo do Roblox completamente
+win.Draggable = false
 
 local function setDragEnabled(v)
     dragEnabled = v
 end
 
-hdr.InputBegan:Connect(function(inp)
+-- Captura drag em TODA a janela (nao so no header)
+win.InputBegan:Connect(function(inp)
     if not dragEnabled then return end
-    if inp.UserInputType == Enum.UserInputType.MouseButton1 then
-        dragging = true
+    if inp.UserInputType == Enum.UserInputType.MouseButton1
+    or inp.UserInputType == Enum.UserInputType.Touch then
+        dragging  = true
         dragStart = inp.Position
         winStart  = win.Position
     end
 end)
-hdr.InputEnded:Connect(function(inp)
-    if inp.UserInputType == Enum.UserInputType.MouseButton1 then
+win.InputEnded:Connect(function(inp)
+    if inp.UserInputType == Enum.UserInputType.MouseButton1
+    or inp.UserInputType == Enum.UserInputType.Touch then
         dragging = false
     end
 end)
 uis.InputChanged:Connect(function(inp)
-    if dragging and inp.UserInputType == Enum.UserInputType.MouseMovement then
+    if not dragging then return end
+    if inp.UserInputType == Enum.UserInputType.MouseMovement
+    or inp.UserInputType == Enum.UserInputType.Touch then
         local delta = inp.Position - dragStart
         win.Position = UDim2.new(
             winStart.X.Scale, winStart.X.Offset + delta.X,
@@ -657,6 +668,115 @@ cpToggleRow(optSection, "Arrastar Janela (Drag)", false, function(v)
     stDragLbl.Text = "Drag: " .. (v and "ON" or "OFF")
 end)
 
+-- ── Slider de tamanho da janela ───────────────────────────────
+do
+    local sizeRow = Instance.new("Frame")
+    sizeRow.Size             = UDim2.new(1,0,0,52)
+    sizeRow.BackgroundColor3 = C.bg4
+    sizeRow.BorderSizePixel  = 0
+    sizeRow.Parent           = optSection
+    corner(sizeRow, 7)
+
+    local sizeLbl = Instance.new("TextLabel")
+    sizeLbl.Size                  = UDim2.new(1,-10,0,18)
+    sizeLbl.Position              = UDim2.new(0,10,0,4)
+    sizeLbl.BackgroundTransparency= 1
+    sizeLbl.Text                  = "Tamanho da Interface:  100%"
+    sizeLbl.TextColor3            = C.txt
+    sizeLbl.TextSize              = 11
+    sizeLbl.Font                  = Enum.Font.Gotham
+    sizeLbl.TextXAlignment        = Enum.TextXAlignment.Left
+    sizeLbl.Parent                = sizeRow
+
+    local sizeTrack = Instance.new("Frame")
+    sizeTrack.Size             = UDim2.new(1,-18,0,6)
+    sizeTrack.Position         = UDim2.new(0,9,0,32)
+    sizeTrack.BackgroundColor3 = C.off
+    sizeTrack.BorderSizePixel  = 0
+    sizeTrack.Parent           = sizeRow
+    corner(sizeTrack, 3)
+
+    -- valor inicial = 100% => escala centralizada em 100
+    local sizeMin, sizeMax, sizeVal = 50, 150, 100
+    local sizeRange = sizeMax - sizeMin
+    local sizePct0  = (sizeVal - sizeMin) / sizeRange
+
+    local sizeFill = Instance.new("Frame")
+    sizeFill.Size             = UDim2.new(sizePct0,0,1,0)
+    sizeFill.BackgroundColor3 = C.acc
+    sizeFill.BorderSizePixel  = 0
+    sizeFill.Parent           = sizeTrack
+    corner(sizeFill, 3)
+
+    local sizeKnob = Instance.new("Frame")
+    sizeKnob.Size             = UDim2.new(0,18,0,18)
+    sizeKnob.AnchorPoint      = Vector2.new(0.5,0.5)
+    sizeKnob.Position         = UDim2.new(sizePct0,0,0.5,0)
+    sizeKnob.BackgroundColor3 = C.white
+    sizeKnob.BorderSizePixel  = 0
+    sizeKnob.ZIndex           = 3
+    sizeKnob.Parent           = sizeTrack
+    corner(sizeKnob, 9)
+
+    local sizeHit = Instance.new("TextButton")
+    sizeHit.Size                   = UDim2.new(1,0,4,8)
+    sizeHit.Position               = UDim2.new(0,0,0,-10)
+    sizeHit.BackgroundTransparency = 1
+    sizeHit.Text                   = ""
+    sizeHit.ZIndex                 = 5
+    sizeHit.Parent                 = sizeTrack
+
+    local draggingSize = false
+
+    local function applySize(pct)
+        sizeVal = math.floor(sizeMin + pct * sizeRange + 0.5)
+        local v2 = (sizeVal - sizeMin) / sizeRange
+        sizeFill.Size     = UDim2.new(v2,0,1,0)
+        sizeKnob.Position = UDim2.new(v2,0,0.5,0)
+        sizeLbl.Text      = "Tamanho da Interface:  " .. sizeVal .. "%"
+        local scale = sizeVal / 100
+        local nw = math.floor(WIN_W * scale)
+        local nh = math.floor(WIN_H * scale)
+        win.Size = UDim2.new(0, nw, 0, nh)
+        -- recentra na tela
+        win.Position = UDim2.new(0.5, -nw/2, 0.5, -nh/2)
+    end
+
+    local function updateSizeSlider(mx)
+        local ax  = sizeTrack.AbsolutePosition.X
+        local aw  = sizeTrack.AbsoluteSize.X
+        local pct = math.clamp((mx - ax) / math.max(aw,1), 0, 1)
+        applySize(pct)
+    end
+
+    sizeHit.InputBegan:Connect(function(inp)
+        if inp.UserInputType == Enum.UserInputType.MouseButton1
+        or inp.UserInputType == Enum.UserInputType.Touch then
+            draggingSize = true
+            updateSizeSlider(inp.Position.X)
+        end
+    end)
+    sizeHit.InputEnded:Connect(function(inp)
+        if inp.UserInputType == Enum.UserInputType.MouseButton1
+        or inp.UserInputType == Enum.UserInputType.Touch then
+            draggingSize = false
+        end
+    end)
+    uis.InputChanged:Connect(function(inp)
+        if not draggingSize then return end
+        if inp.UserInputType == Enum.UserInputType.MouseMovement
+        or inp.UserInputType == Enum.UserInputType.Touch then
+            updateSizeSlider(inp.Position.X)
+        end
+    end)
+    uis.InputEnded:Connect(function(inp)
+        if inp.UserInputType == Enum.UserInputType.MouseButton1
+        or inp.UserInputType == Enum.UserInputType.Touch then
+            draggingSize = false
+        end
+    end)
+end
+
 cpToggleRow(optSection, "Anti-AFK", true, function(v)
     -- callback conectado a logica principal
 end)
@@ -995,22 +1115,20 @@ function NagaxLib:Tab(name)
         corner(fill, 3)
 
         local knob = Instance.new("Frame")
-        knob.Size             = UDim2.new(0,14,0,14)
+        knob.Size             = UDim2.new(0,18,0,18)
         knob.AnchorPoint      = Vector2.new(0.5,0.5)
         knob.Position         = UDim2.new(pct0,0,0.5,0)
         knob.BackgroundColor3 = C.white
         knob.BorderSizePixel  = 0
         knob.ZIndex           = 3
         knob.Parent           = track
-        corner(knob, 7)
+        corner(knob, 9)
 
-        -- IMPORTANTE: area de hit maior, mas com ZIndex alto
-        -- O slider usa InputBegan/InputEnded para nao conflitar com o drag da janela
         local draggingSlider = false
 
         local hit = Instance.new("TextButton")
-        hit.Size                   = UDim2.new(1,0,3,4)
-        hit.Position               = UDim2.new(0,0,0,-6)
+        hit.Size                   = UDim2.new(1,0,4,8)
+        hit.Position               = UDim2.new(0,0,0,-10)
         hit.BackgroundTransparency = 1
         hit.Text                   = ""
         hit.ZIndex                 = 5
@@ -1028,27 +1146,32 @@ function NagaxLib:Tab(name)
             if callback then pcall(callback, value) end
         end
 
-        -- Usa InputBegan no hit para capturar o slider
+        -- Mouse e Touch: InputBegan no hit
         hit.InputBegan:Connect(function(inp)
-            if inp.UserInputType == Enum.UserInputType.MouseButton1 then
+            if inp.UserInputType == Enum.UserInputType.MouseButton1
+            or inp.UserInputType == Enum.UserInputType.Touch then
                 draggingSlider = true
                 updateSlider(inp.Position.X)
             end
         end)
         hit.InputEnded:Connect(function(inp)
-            if inp.UserInputType == Enum.UserInputType.MouseButton1 then
+            if inp.UserInputType == Enum.UserInputType.MouseButton1
+            or inp.UserInputType == Enum.UserInputType.Touch then
                 draggingSlider = false
             end
         end)
 
-        -- Move enquanto arrasta (apenas quando slider esta ativo)
+        -- Movimento (mouse e touch)
         uis.InputChanged:Connect(function(inp)
-            if draggingSlider and inp.UserInputType == Enum.UserInputType.MouseMovement then
+            if not draggingSlider then return end
+            if inp.UserInputType == Enum.UserInputType.MouseMovement
+            or inp.UserInputType == Enum.UserInputType.Touch then
                 updateSlider(inp.Position.X)
             end
         end)
         uis.InputEnded:Connect(function(inp)
-            if inp.UserInputType == Enum.UserInputType.MouseButton1 then
+            if inp.UserInputType == Enum.UserInputType.MouseButton1
+            or inp.UserInputType == Enum.UserInputType.Touch then
                 draggingSlider = false
             end
         end)

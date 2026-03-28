@@ -80,6 +80,8 @@ win.Position         = UDim2.new(0.5, -WIN_W/2, 0.5, -WIN_H/2)
 win.BackgroundColor3 = C.bg
 win.BorderSizePixel  = 0
 win.ClipsDescendants = true
+win.Active           = true
+win.Draggable        = true
 win.Parent           = sg
 corner(win, 12)
 stroke(win, 1, C.bdr)
@@ -264,10 +266,10 @@ end)
 -- ── Body ─────────────────────────────────────────────────────
 local body = Instance.new("Frame")
 body.Name             = "Body"
-body.Size             = UDim2.new(1,0, 1,-(HEADER_H+STATUS_H))
+body.Size             = UDim2.new(1,0, 1,-HEADER_H)
 body.Position         = UDim2.new(0,0, 0,HEADER_H)
 body.BackgroundTransparency = 1
-body.ClipsDescendants = false
+body.ClipsDescendants = true
 body.Parent           = win
 
 -- ── Sidebar ───────────────────────────────────────────────────

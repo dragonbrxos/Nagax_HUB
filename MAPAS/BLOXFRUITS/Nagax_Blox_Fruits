@@ -141,6 +141,10 @@ elseif game.PlaceId == 7449423635 then
     World3 = true
 end
 
+-- Detecta o mar atual na biblioteca e mostra na status bar
+NagaxLib:DetectSea()
+NagaxLib:ShowSeaOnWindow(Window)
+
 function CheckQuest() 
     MyLevel = game:GetService("Players").LocalPlayer.Data.Level.Value
     if World1 then
@@ -4053,6 +4057,7 @@ end)
 
 Main:Seperator("Monster Farm")
 
+tableMon = {}
 if World1 then
 	tableMon = {"Bandit","Monkey","Gorilla","Pirate","Brute","Desert Bandit","Desert Officer","Snow Bandit","Snowman","Chief Petty Officer","Sky Bandit","Dark Master","Toga Warrior","Gladiator","Military Soldier","Military Spy","Fishman Warrior","Fishman Commando","God's Guard","Shanda","Royal Squad","Royal Soldier","Galley Pirate","Galley Captain"}
 elseif World2 then

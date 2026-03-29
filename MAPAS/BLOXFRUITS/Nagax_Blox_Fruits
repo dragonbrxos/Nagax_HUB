@@ -4,7 +4,7 @@ until game.Players.LocalPlayer
 
 -- Carrega a interface via biblioteca externa (v2)
 local NagaxLib = loadstring(game:HttpGet(
-    "https://raw.githubusercontent.com/dragonbrxos/Nagax_HUB/refs/heads/main/UI/NagaxLib2",
+    "https://raw.githubusercontent.com/dragonbrxos/Nagax_HUB/refs/heads/main/UI/NagaxLib",
     true
 ))()
 

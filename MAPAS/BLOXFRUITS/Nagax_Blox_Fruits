@@ -2322,7 +2322,7 @@ function InMyNetWork(object)
 		return false
 	end
 end
------------------------------------------------------------------------------------------------------------------------------Main Tab
+pcall(function() --[[ Main Tab ]]
 Main:Dropdown("Select Weapon", {"Melee","Sword","Fruit","Gun"}, function(value)
     _G.SelectWeapon = value
 end)
@@ -4107,7 +4107,7 @@ spawn(function()
         end
     end
 end)
------------------------------------------------------------------------------------------------------------------------------Setting Tab
+end) pcall(function() --[[ Setting Tab ]]
 Set:Toggle("Fast Attck", true, function(value)
     _G.FastAttack = value
     StopTween(_G.FastAttack)
@@ -4857,7 +4857,7 @@ end)
 PosX = 1
 PosY = 35
 PosZ = 40
------------------------------------------------------------------------------------------------------------------------------Other Farm Tab
+end) pcall(function() --[[ Other Farm Tab ]]
 Farm:Toggle("Auto Second Sea", false, function(value)
     _G.AutoSecondSea = value
     StopTween(_G.AutoSecondSea)
@@ -8385,7 +8385,7 @@ spawn(function()
 		end
 	end
 end)
------------------------------------------------------------------------------------------------------------------------------Stats Tab
+end) pcall(function() --[[ Stats Tab ]]
 local Pointstat = Stats:Label("")
 spawn(function()
     while wait() do
@@ -8512,7 +8512,7 @@ Stats:Slider("Point To Add", 0, 2550, 1, function(value)
     PointStats = value
 end)
 PointStats = 1
------------------------------------------------------------------------------------------------------------------------------Teleport Tab
+end) pcall(function() --[[ Teleport Tab ]]
 Tele:Seperator("World Teleport")
 
 Tele:Button("Teleport To Frist Sea", function()
@@ -8846,7 +8846,7 @@ Tele:Toggle("Teleport To Selected NPC", false, function(value)
     end
     StopTween(_G.TeleportNPC)
 end)
------------------------------------------------------------------------------------------------------------------------------Player Tab
+end) pcall(function() --[[ Player Tab ]]
 local plyserv = Player:Label("")
 spawn(function()
     while wait() do
@@ -9030,7 +9030,7 @@ spawn(function()
     end
 end)
 
------------------------------------------------------------------------------------------------------------------------------Devil Fruit Tab
+end) pcall(function() --[[ Devil Fruit Tab ]]
 
 DemonFruit:Seperator("Sniper")
     
@@ -9404,7 +9404,7 @@ spawn(function()
     end)
 end)
 
------------------------------------------------------------------------------------------------------------------------------Raid Tab
+end) pcall(function() --[[ Raid Tab ]]
 local TimeRaid = Raid:Label("")
 spawn(function()
     pcall(function()
@@ -10047,7 +10047,7 @@ end)
 		}
 		game:GetService("ReplicatedStorage").Remotes.CommF_:InvokeServer(unpack(args))
 	end)
------------------------------------------------------------------------------------------------------------------------------Misc Tab
+end) pcall(function() --[[ Misc Tab ]]
 
 Misc:Button("Fruit Rain [ Old ]", function()
     for i, v in pairs(game:GetObjects("rbxassetid://14759368201")[1]:GetChildren()) do
@@ -11120,7 +11120,7 @@ Misc:Toggle("Remove Fog",RemoveFog,function(value)
     game.Players.LocalPlayer.Character.Animate.Disabled = true 
 end)
 
------------------------------------------------------------------------------------------------------------------------------Race V4 Tab
+end) pcall(function() --[[ Race V4 Tab ]]
 Race:Button("Reset Character", function()
     game.Players.LocalPlayer.Character.Head:Destroy()
 end)
@@ -11542,7 +11542,7 @@ spawn(function()
     end
 end)
 
------------------------------------------------------------------------------------------------------------------------------Update Event Tab
+end) pcall(function() --[[ Update Event Tab ]]
 Event:Seperator("Boats Modify")
 
 BoatsName = {}
@@ -12503,5 +12503,7 @@ game:GetService("StarterGui"):SetCore("SendNotification", {
     Text = "Script Loaded! ",
     Duration = 1
 })
+
+end) -- fim Update Event Tab
 
 end) -- fim do pcall protetor da lógica de jogo

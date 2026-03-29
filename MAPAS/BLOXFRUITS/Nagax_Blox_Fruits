@@ -1,44 +1,31 @@
 repeat
-    task.wait()
+    wait()
 until game.Players.LocalPlayer
 
--- Carrega a interface via biblioteca externa (v2)
+-- Carrega a interface via biblioteca externa
 local NagaxLib = loadstring(game:HttpGet(
     "https://raw.githubusercontent.com/dragonbrxos/Nagax_HUB/refs/heads/main/UI/NagaxLib",
     true
 ))()
 
--- ── CRIAÇÃO DA JANELA (NOVO) ─────────────────────────────────
-local Window = NagaxLib:CreateWindow({
-    Title = "Nagax_HUB",
-    Game = "BloxFruits",
-    Width = 560,
-    Height = 390
-})
-
 -- ── Criação das tabs ──────────────────────────────────────────
--- Agora usa Window:Tab() em vez de NagaxLib:Tab()
-local Set        = Window:Tab("Settings Farm")
-local Main       = Window:Tab("Auto Farm")
-local Farm       = Window:Tab("Item Quest")
-local Event      = Window:Tab("Mar Event")
-local Stats      = Window:Tab("Auto Stats")
-local Tele       = Window:Tab("World Tele")
-local Player     = Window:Tab("Player Pvp")
-local Race       = Window:Tab("Race V4")
-local Raid       = Window:Tab("Dungeon Raid")
-local DemonFruit = Window:Tab("Fruit Demon")
-local Esp        = Window:Tab("Esp Player")
-local Shop       = Window:Tab("Shopee")
-local Misc       = Window:Tab("Miscellaneous")
-
--- Inicialização segura (verifica se tudo carregou corretamente)
-Window:Init()
+local Set        = NagaxLib:Tab("Settings Farm")
+local Main       = NagaxLib:Tab("Auto Farm")
+local Farm       = NagaxLib:Tab("Item Quest")
+local Event      = NagaxLib:Tab("Mar Event")
+local Stats      = NagaxLib:Tab("Auto Stats")
+local Tele       = NagaxLib:Tab("World Tele")
+local Player     = NagaxLib:Tab("Player Pvp")
+local Race       = NagaxLib:Tab("Race V4")
+local Raid       = NagaxLib:Tab("Dungeon Raid")
+local DemonFruit = NagaxLib:Tab("Fruit Demon")
+local Esp        = NagaxLib:Tab("Esp Player")
+local Shop       = NagaxLib:Tab("Shopee")
+local Misc       = NagaxLib:Tab("Miscellaneous")
 
 -----------------------------------------------------------------------------------------------------------------------------Function
 -- Protege toda a lógica de jogo: se qualquer erro ocorrer, a UI continua funcionando
 pcall(function()
-
 
 if getrawmetatable and setreadonly and newcclosure then
     grm = getrawmetatable(game)

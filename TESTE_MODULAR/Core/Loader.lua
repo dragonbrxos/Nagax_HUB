@@ -15,11 +15,20 @@ elseif game.PlaceId == 4442272183 then Sea = "Sea2"
 elseif game.PlaceId == 7449423635 then Sea = "Sea3" end
 
 -- Carrega o script específico do Sea
-local SeaScript = loadstring(game:HttpGet("https://raw.githubusercontent.com/dragonbrxos/Nagax_HUB/refs/heads/main/TESTE_MODULAR/Seas/" .. Sea .. ".lua", true))
-if SeaScript then
-    SeaScript()(Window, NagaxLib)
+local success, SeaScript = pcall(function()
+    return loadstring(game:HttpGet("https://raw.githubusercontent.com/dragonbrxos/Nagax_HUB/refs/heads/main/TESTE_MODULAR/Seas/" .. Sea .. ".lua", true))()
+end)
+
+if success and type(SeaScript) == "function" then
+    -- Executa o script passando a janela e a biblioteca como argumentos
+    local runSuccess, runError = pcall(function()
+        SeaScript(Window, NagaxLib)
+    end)
+    if not runSuccess then
+        warn("Erro ao executar script do " .. Sea .. ": " .. tostring(runError))
+    end
 else
-    warn("Falha ao carregar o script para " .. Sea)
+    warn("Falha ao carregar ou processar o script para " .. Sea .. ". Verifique se o arquivo existe e é válido.")
 end
 
 Window:Init()

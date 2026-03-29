@@ -1650,5 +1650,23 @@ NagaxLib.MakeTab = function(window, name)
     return window:Tab(name) 
 end
 
+-- Alias CreateWindow → MakeWindow (compatibilidade)
+NagaxLib.CreateWindow = function(self, config)
+    return NagaxLib.MakeWindow(NagaxLib, config)
+end
+
+-- Window:Init() — chamado pelo script após criar todas as tabs
+-- Garante que a primeira tab esteja selecionada e visível
+function Window:Init()
+    if #self.Tabs > 0 and not self.ActiveTab then
+        self:SelectTab(self.Tabs[1])
+    elseif self.ActiveTab then
+        -- Força re-seleção para garantir que o scroll está visível
+        local current = self.ActiveTab
+        self.ActiveTab = nil
+        self:SelectTab(current)
+    end
+end
+
 -- Exportação
 return NagaxLib

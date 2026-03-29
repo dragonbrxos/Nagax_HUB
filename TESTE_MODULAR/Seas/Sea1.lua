@@ -1,4 +1,3 @@
-return function(Window, NagaxLib)
 repeat
     wait()
 until game.Players.LocalPlayer
@@ -12488,4 +12487,3 @@ game:GetService("StarterGui"):SetCore("SendNotification", {
 })
 
 end) -- fim do pcall protetor da lógica de jogo
-end

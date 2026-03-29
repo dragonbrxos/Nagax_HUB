@@ -737,7 +737,7 @@ function DropdownComponent:_PopulateOptions()
                 Size = UDim2.new(0, 20, 1, 0),
                 Position = UDim2.new(1, -24, 0, 0),
                 BackgroundTransparency = 1,
-                Text = "✓",
+                Text = "v",
                 TextColor3 = NagaxLib.Theme.Colors.Accent.Primary,
                 TextSize = 12,
                 Font = Enum.Font.GothamBold,
@@ -1388,7 +1388,7 @@ function NagaxLib:MakeWindow(config)
         Position = UDim2.new(1, -98, 0.5, -10),
         BackgroundColor3 = NagaxLib.Theme.Colors.Accent.Dark,
         BorderSizePixel = 0,
-        Text = "🎨",
+        Text = "T",
         TextColor3 = NagaxLib.Theme.Colors.Text.Primary,
         TextSize = 11,
         Font = Enum.Font.GothamBold,
@@ -1765,4 +1765,116 @@ function Window:Init()
 end
 
 -- Exportação
+-- ── SISTEMA DE DETECÇÃO DE MAR (Opcional) ───────────────────
+-- O script define o mar via NagaxLib:SetSea(placeId)
+-- A biblioteca detecta automaticamente qual mar (1, 2 ou 3)
+-- e expõe NagaxLib.Sea (número) e NagaxLib.SeaName (string)
+
+NagaxLib.Sea = 0        -- 0 = desconhecido / não definido
+NagaxLib.SeaName = ""
+NagaxLib._seaCallbacks = {}
+
+-- Tabela de PlaceIds conhecidos do Blox Fruits
+local BLOX_FRUITS_SEAS = {
+    [2753915549] = 1,   -- Primeiro Mar
+    [4442272183] = 2,   -- Segundo Mar
+    [7449423635] = 3,   -- Terceiro Mar
+}
+
+-- Chamado pelo script principal para registrar o mar atual
+-- Uso: NagaxLib:SetSea(game.PlaceId)
+-- Ou:  NagaxLib:SetSea(1)  /  NagaxLib:SetSea(2)  /  NagaxLib:SetSea(3)
+function NagaxLib:SetSea(value)
+    local sea = 0
+    if type(value) == "number" then
+        if value == 1 or value == 2 or value == 3 then
+            -- Passado direto como número do mar
+            sea = value
+        else
+            -- Passado como PlaceId
+            sea = BLOX_FRUITS_SEAS[value] or 0
+        end
+    end
+    NagaxLib.Sea = sea
+    NagaxLib.SeaName = sea == 1 and "Primeiro Mar"
+                    or sea == 2 and "Segundo Mar"
+                    or sea == 3 and "Terceiro Mar"
+                    or "Mar Desconhecido"
+
+    -- Dispara callbacks registrados
+    for _, cb in pairs(NagaxLib._seaCallbacks) do
+        task.spawn(cb, sea, NagaxLib.SeaName)
+    end
+end
+
+-- Detecta automaticamente pelo PlaceId atual (pode ser chamado sem argumento)
+function NagaxLib:DetectSea()
+    local ok, placeId = pcall(function() return game.PlaceId end)
+    if ok then
+        NagaxLib:SetSea(placeId)
+    end
+    return NagaxLib.Sea
+end
+
+-- Registra callback que é chamado quando o mar é definido
+function NagaxLib:OnSeaChanged(callback)
+    table.insert(NagaxLib._seaCallbacks, callback)
+end
+
+-- Verifica se está no mar especificado
+function NagaxLib:IsSea(seaNumber)
+    return NagaxLib.Sea == seaNumber
+end
+
+-- ── MÉTODO OnSea NAS TABS ────────────────────────────────────
+-- Uso: tab:OnSea(1, function(tab) tab:Toggle(...) end)
+-- Executa o builder só se estiver no mar correto
+-- Se Sea == 0 (não detectado), executa em todos os mares
+function TabSystem:OnSea(seaNumber, builderFn)
+    if NagaxLib.Sea == 0 or NagaxLib.Sea == seaNumber then
+        if type(builderFn) == "function" then
+            builderFn(self)
+        end
+    end
+end
+
+-- Atalhos semânticos
+function TabSystem:OnFirstSea(builderFn)  self:OnSea(1, builderFn) end
+function TabSystem:OnSecondSea(builderFn) self:OnSea(2, builderFn) end
+function TabSystem:OnThirdSea(builderFn)  self:OnSea(3, builderFn) end
+
+-- ── LABEL DO MAR NA STATUS BAR ───────────────────────────────
+-- Mostra qual mar está ativo na barra inferior da janela
+-- Chamado automaticamente quando SetSea é usado com uma Window ativa
+function NagaxLib:ShowSeaOnWindow(window)
+    if not window or not window.Main then return end
+
+    -- Procura a StatusBar
+    local statusBar = window.Main:FindFirstChild("StatusBar")
+    if not statusBar then return end
+
+    -- Remove label anterior se existir
+    local old = statusBar:FindFirstChild("SeaLabel")
+    if old then old:Destroy() end
+
+    local label = Utils.Create("TextLabel", {
+        Name = "SeaLabel",
+        Size = UDim2.new(1, -8, 1, 0),
+        Position = UDim2.new(0, 8, 0, 0),
+        BackgroundTransparency = 1,
+        Text = NagaxLib.SeaName ~= "" and ("Mar: " .. NagaxLib.SeaName) or "Mar: nao detectado",
+        TextColor3 = NagaxLib.Theme.Colors.Text.Secondary,
+        TextSize = 9,
+        Font = Enum.Font.Gotham,
+        TextXAlignment = Enum.TextXAlignment.Left,
+        ZIndex = 3,
+        Parent = statusBar
+    })
+
+    -- Atualiza se o mar mudar depois
+    NagaxLib:OnSeaChanged(function(sea, name)
+        label.Text = "Mar: " .. name
+    end)
+end
+
 return NagaxLib

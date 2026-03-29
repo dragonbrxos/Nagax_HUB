@@ -956,6 +956,7 @@ local TabSystem = {}
 TabSystem.__index = TabSystem
 
 function TabSystem:Create(window, name)
+    function tab:Section(title) return tab end
     local self = setmetatable({}, TabSystem)
     
     self.Name = name

@@ -9,7 +9,7 @@ local NagaxLib = loadstring(game:HttpGet(
 ))()
 
 -- ── CRIAÇÃO DA JANELA (NOVO) ─────────────────────────────────
-local Window = NagaxLib:CreateWindow({
+local Window = NagaxLib:MakeWindow({
     Title = "Nagax_HUB",
     Game = "BloxFruits",
     Width = 560,

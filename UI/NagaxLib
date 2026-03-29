@@ -1,9 +1,3 @@
--- ============================================================
---  Nagax_HUB - NagaxLib v5 (UI redesenhada, sem emoji)
---  Substitui APENAS o bloco da UI (do inicio ate NagaxLib:Tab)
---  Toda a logica de jogo permanece igual.
--- ============================================================
-
 local NagaxLib = {}
 
 local lp        = game:GetService("Players").LocalPlayer

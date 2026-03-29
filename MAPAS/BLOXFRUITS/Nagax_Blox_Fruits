@@ -1,44 +1,31 @@
 repeat
-    task.wait()
+    wait()
 until game.Players.LocalPlayer
 
--- Carrega a interface via biblioteca externa (v2)
+-- Carrega a interface via biblioteca externa
 local NagaxLib = loadstring(game:HttpGet(
     "https://raw.githubusercontent.com/dragonbrxos/Nagax_HUB/refs/heads/main/UI/NagaxLib",
     true
 ))()
 
--- ── CRIAÇÃO DA JANELA (NOVO) ─────────────────────────────────
-local Window = NagaxLib:MakeWindow({
-    Title = "Nagax_HUB",
-    Game = "BloxFruits",
-    Width = 560,
-    Height = 390
-})
-
 -- ── Criação das tabs ──────────────────────────────────────────
--- Agora usa Window:Tab() em vez de NagaxLib:Tab()
-local Set        = Window:Tab("Settings Farm")
-local Main       = Window:Tab("Auto Farm")
-local Farm       = Window:Tab("Item Quest")
-local Event      = Window:Tab("Mar Event")
-local Stats      = Window:Tab("Auto Stats")
-local Tele       = Window:Tab("World Tele")
-local Player     = Window:Tab("Player Pvp")
-local Race       = Window:Tab("Race V4")
-local Raid       = Window:Tab("Dungeon Raid")
-local DemonFruit = Window:Tab("Fruit Demon")
-local Esp        = Window:Tab("Esp Player")
-local Shop       = Window:Tab("Shopee")
-local Misc       = Window:Tab("Miscellaneous")
-
--- Inicialização segura (verifica se tudo carregou corretamente)
-Window:Init()
+local Set        = NagaxLib:Tab("Settings Farm")
+local Main       = NagaxLib:Tab("Auto Farm")
+local Farm       = NagaxLib:Tab("Item Quest")
+local Event      = NagaxLib:Tab("Mar Event")
+local Stats      = NagaxLib:Tab("Auto Stats")
+local Tele       = NagaxLib:Tab("World Tele")
+local Player     = NagaxLib:Tab("Player Pvp")
+local Race       = NagaxLib:Tab("Race V4")
+local Raid       = NagaxLib:Tab("Dungeon Raid")
+local DemonFruit = NagaxLib:Tab("Fruit Demon")
+local Esp        = NagaxLib:Tab("Esp Player")
+local Shop       = NagaxLib:Tab("Shopee")
+local Misc       = NagaxLib:Tab("Miscellaneous")
 
 -----------------------------------------------------------------------------------------------------------------------------Function
 -- Protege toda a lógica de jogo: se qualquer erro ocorrer, a UI continua funcionando
 pcall(function()
-
 
 if getrawmetatable and setreadonly and newcclosure then
     grm = getrawmetatable(game)
@@ -140,10 +127,6 @@ elseif game.PlaceId == 4442272183 then
 elseif game.PlaceId == 7449423635 then
     World3 = true
 end
-
--- Detecta o mar atual na biblioteca e mostra na status bar
-NagaxLib:DetectSea()
-NagaxLib:ShowSeaOnWindow(Window)
 
 function CheckQuest() 
     MyLevel = game:GetService("Players").LocalPlayer.Data.Level.Value
@@ -2322,7 +2305,7 @@ function InMyNetWork(object)
 		return false
 	end
 end
-pcall(function() --[[ Main Tab ]]
+-----------------------------------------------------------------------------------------------------------------------------Main Tab
 Main:Dropdown("Select Weapon", {"Melee","Sword","Fruit","Gun"}, function(value)
     _G.SelectWeapon = value
 end)
@@ -4057,7 +4040,6 @@ end)
 
 Main:Seperator("Monster Farm")
 
-tableMon = {}
 if World1 then
 	tableMon = {"Bandit","Monkey","Gorilla","Pirate","Brute","Desert Bandit","Desert Officer","Snow Bandit","Snowman","Chief Petty Officer","Sky Bandit","Dark Master","Toga Warrior","Gladiator","Military Soldier","Military Spy","Fishman Warrior","Fishman Commando","God's Guard","Shanda","Royal Squad","Royal Soldier","Galley Pirate","Galley Captain"}
 elseif World2 then
@@ -4107,7 +4089,7 @@ spawn(function()
         end
     end
 end)
-end) pcall(function() --[[ Setting Tab ]]
+-----------------------------------------------------------------------------------------------------------------------------Setting Tab
 Set:Toggle("Fast Attck", true, function(value)
     _G.FastAttack = value
     StopTween(_G.FastAttack)
@@ -4857,7 +4839,7 @@ end)
 PosX = 1
 PosY = 35
 PosZ = 40
-end) pcall(function() --[[ Other Farm Tab ]]
+-----------------------------------------------------------------------------------------------------------------------------Other Farm Tab
 Farm:Toggle("Auto Second Sea", false, function(value)
     _G.AutoSecondSea = value
     StopTween(_G.AutoSecondSea)
@@ -8385,7 +8367,7 @@ spawn(function()
 		end
 	end
 end)
-end) pcall(function() --[[ Stats Tab ]]
+-----------------------------------------------------------------------------------------------------------------------------Stats Tab
 local Pointstat = Stats:Label("")
 spawn(function()
     while wait() do
@@ -8512,7 +8494,7 @@ Stats:Slider("Point To Add", 0, 2550, 1, function(value)
     PointStats = value
 end)
 PointStats = 1
-end) pcall(function() --[[ Teleport Tab ]]
+-----------------------------------------------------------------------------------------------------------------------------Teleport Tab
 Tele:Seperator("World Teleport")
 
 Tele:Button("Teleport To Frist Sea", function()
@@ -8846,7 +8828,7 @@ Tele:Toggle("Teleport To Selected NPC", false, function(value)
     end
     StopTween(_G.TeleportNPC)
 end)
-end) pcall(function() --[[ Player Tab ]]
+-----------------------------------------------------------------------------------------------------------------------------Player Tab
 local plyserv = Player:Label("")
 spawn(function()
     while wait() do
@@ -9030,7 +9012,7 @@ spawn(function()
     end
 end)
 
-end) pcall(function() --[[ Devil Fruit Tab ]]
+-----------------------------------------------------------------------------------------------------------------------------Devil Fruit Tab
 
 DemonFruit:Seperator("Sniper")
     
@@ -9404,7 +9386,7 @@ spawn(function()
     end)
 end)
 
-end) pcall(function() --[[ Raid Tab ]]
+-----------------------------------------------------------------------------------------------------------------------------Raid Tab
 local TimeRaid = Raid:Label("")
 spawn(function()
     pcall(function()
@@ -10047,7 +10029,7 @@ end)
 		}
 		game:GetService("ReplicatedStorage").Remotes.CommF_:InvokeServer(unpack(args))
 	end)
-end) pcall(function() --[[ Misc Tab ]]
+-----------------------------------------------------------------------------------------------------------------------------Misc Tab
 
 Misc:Button("Fruit Rain [ Old ]", function()
     for i, v in pairs(game:GetObjects("rbxassetid://14759368201")[1]:GetChildren()) do
@@ -11120,7 +11102,7 @@ Misc:Toggle("Remove Fog",RemoveFog,function(value)
     game.Players.LocalPlayer.Character.Animate.Disabled = true 
 end)
 
-end) pcall(function() --[[ Race V4 Tab ]]
+-----------------------------------------------------------------------------------------------------------------------------Race V4 Tab
 Race:Button("Reset Character", function()
     game.Players.LocalPlayer.Character.Head:Destroy()
 end)
@@ -11542,7 +11524,7 @@ spawn(function()
     end
 end)
 
-end) pcall(function() --[[ Update Event Tab ]]
+-----------------------------------------------------------------------------------------------------------------------------Update Event Tab
 Event:Seperator("Boats Modify")
 
 BoatsName = {}
@@ -12503,7 +12485,5 @@ game:GetService("StarterGui"):SetCore("SendNotification", {
     Text = "Script Loaded! ",
     Duration = 1
 })
-
-end) -- fim Update Event Tab
 
 end) -- fim do pcall protetor da lógica de jogo

@@ -625,7 +625,6 @@ function DropdownComponent:Create(parent, label, options, callback)
     
     local listLayout = Utils.Create("UIListLayout", {
         Padding = UDim.new(0, 2),
-        SortOrder = Enum.SortOrder.LayoutOrder,
         Parent = self.Scroll
     })
     
@@ -956,7 +955,6 @@ local TabSystem = {}
 TabSystem.__index = TabSystem
 
 function TabSystem:Create(window, name)
-    function tab:Section(title) return tab end
     local self = setmetatable({}, TabSystem)
     
     self.Name = name
@@ -1266,14 +1264,13 @@ function NagaxLib:MakeWindow(config)
         PaddingBottom = UDim.new(0, 6),
         PaddingLeft = UDim.new(0, 5),
         PaddingRight = UDim.new(0, 5),
-        Parent = body
+        Parent = self.Sidebar
     })
     
     Utils.Create("UIListLayout", {
-        Padding = UDim.new(0, 2),
-        SortOrder = Enum.SortOrder.LayoutOrder,
+        Padding = UDim.new(0, 2), SortOrder = Enum.SortOrder.LayoutOrder,
         HorizontalAlignment = Enum.HorizontalAlignment.Center,
-        Parent = body
+        Parent = self.Sidebar
     })
     
     -- Main Panel

@@ -520,25 +520,26 @@ function SliderComponent:GetValue()
     return self.Value
 end
 
--- DROPDOWN (Sistema Overlay Flutuante - Profissional)
+-- DROPDOWN (Sistema Overlay Flutuante - igual redz hub)
 local DropdownComponent = setmetatable({}, {__index = ComponentBase})
 DropdownComponent.__index = DropdownComponent
 
 function DropdownComponent:Create(parent, label, options, callback)
     local self = setmetatable(ComponentBase.new("Dropdown", parent), DropdownComponent)
-    
-    self.LabelText = label or "Select"
-    self.Options = options or {}
-    self.Selected = tostring(self.Options[1] or "")
-    self.Callback = callback
-    self.IsOpen = false
-    
+
+    self.LabelText  = label or "Select"
+    self.Options    = options or {}
+    self.Selected   = tostring(self.Options[1] or "")
+    self.Callback   = callback
+    self.IsOpen     = false
+    self.FloatFrame = nil   -- criado só no primeiro Open()
+
     -- Inicializa overlay se necessário
     NagaxLib.Overlay.Init()
-    
-    -- Container Principal (só o header visível)
+
+    -- ── Container (linha que aparece sempre) ─────────────────
     self.Instance = Utils.Create("Frame", {
-        Size = UDim2.new(1, 0, 0, 34),
+        Size = UDim2.new(1, 0, 0, 36),
         BackgroundColor3 = NagaxLib.Theme.Colors.Background.Quaternary,
         BorderSizePixel = 0,
         ClipsDescendants = false,
@@ -546,224 +547,273 @@ function DropdownComponent:Create(parent, label, options, callback)
     })
     Utils.RoundCorners(self.Instance, 7)
     Utils.AddStroke(self.Instance, 1, NagaxLib.Theme.Colors.Border)
-    
-    -- Header (botão que abre)
-    self.Header = Utils.Create("TextButton", {
-        Size = UDim2.new(1, 0, 1, 0),
+
+    -- Label topo (pequeno, cinza)
+    self.TopLabel = Utils.Create("TextLabel", {
+        Size = UDim2.new(1, -40, 0, 14),
+        Position = UDim2.new(0, 10, 0, 3),
         BackgroundTransparency = 1,
-        Text = "v  " .. self.LabelText .. ":  " .. self.Selected,
-        TextColor3 = NagaxLib.Theme.Colors.Text.Primary,
-        TextSize = 11,
+        Text = self.LabelText,
+        TextColor3 = NagaxLib.Theme.Colors.Text.Secondary,
+        TextSize = 9,
         Font = Enum.Font.Gotham,
         TextXAlignment = Enum.TextXAlignment.Left,
-        AutoButtonColor = false,
         Parent = self.Instance
     })
-    
-    Utils.Create("UIPadding", {
-        PaddingLeft = UDim.new(0, 10),
-        Parent = self.Header
+
+    -- Valor selecionado (linha de baixo, branco)
+    self.ValueLabel = Utils.Create("TextLabel", {
+        Size = UDim2.new(1, -40, 0, 16),
+        Position = UDim2.new(0, 10, 0, 16),
+        BackgroundTransparency = 1,
+        Text = self.Selected,
+        TextColor3 = NagaxLib.Theme.Colors.Text.Primary,
+        TextSize = 11,
+        Font = Enum.Font.GothamBold,
+        TextXAlignment = Enum.TextXAlignment.Left,
+        Parent = self.Instance
     })
-    
-    -- Arrow Icon (usando texto por simplicidade, mas pode ser ImageLabel)
+
+    -- Seta
     self.Arrow = Utils.Create("TextLabel", {
-        Size = UDim2.new(0, 20, 1, 0),
-        Position = UDim2.new(1, -25, 0, 0),
+        Size = UDim2.new(0, 24, 1, 0),
+        Position = UDim2.new(1, -28, 0, 0),
         BackgroundTransparency = 1,
         Text = "▼",
-        TextColor3 = NagaxLib.Theme.Colors.Text.Secondary,
+        TextColor3 = NagaxLib.Theme.Colors.Accent.Primary,
         TextSize = 10,
         Font = Enum.Font.GothamBold,
-        Parent = self.Header
+        Parent = self.Instance
     })
-    
-    -- Frame Flutuante (Overlay)
+
+    -- Hitbox transparente sobre tudo
+    self.Hitbox = Utils.Create("TextButton", {
+        Size = UDim2.new(1, 0, 1, 0),
+        BackgroundTransparency = 1,
+        Text = "",
+        ZIndex = 3,
+        Parent = self.Instance
+    })
+
+    -- Hover no container
+    self:Connect(self.Hitbox.MouseEnter, function()
+        Utils.Tween(self.Instance, {BackgroundColor3 = NagaxLib.Theme.Colors.Background.Hover}, 0.1)
+    end)
+    self:Connect(self.Hitbox.MouseLeave, function()
+        Utils.Tween(self.Instance, {BackgroundColor3 = NagaxLib.Theme.Colors.Background.Quaternary}, 0.1)
+    end)
+    self:Connect(self.Hitbox.MouseButton1Click, function()
+        self:Toggle()
+    end)
+
+    if self.Callback then
+        task.spawn(self.Callback, self.Selected)
+    end
+
+    return self
+end
+
+-- Cria o FloatFrame apenas quando abrir pela 1ª vez (posição já estável)
+function DropdownComponent:_BuildFloat()
+    if self.FloatFrame then return end
+
+    local absPos  = self.Instance.AbsolutePosition
+    local absSize = self.Instance.AbsoluteSize
+
+    -- Calcula altura: máximo 5 itens de 30px + padding
+    local ITEM_H    = 30
+    local PAD       = 8
+    local maxItems  = math.min(#self.Options, 5)
+    self.TargetHeight = maxItems * ITEM_H + PAD * 2
+
     self.FloatFrame = Utils.Create("Frame", {
         Name = "DropdownFloat_" .. self.ThemeId,
-        Size = UDim2.new(0, self.Instance.AbsoluteSize.X, 0, 0),
-        Position = UDim2.new(0, self.Instance.AbsolutePosition.X, 0, self.Instance.AbsolutePosition.Y + 34),
+        Size = UDim2.new(0, absSize.X, 0, 0),
+        Position = UDim2.new(0, absPos.X, 0, absPos.Y + absSize.Y + 2),
         BackgroundColor3 = NagaxLib.Theme.Colors.Background.Secondary,
         BorderSizePixel = 0,
         Visible = false,
         ZIndex = Config.ZIndex.Dropdown,
+        ClipsDescendants = true,
         Parent = NagaxLib.Overlay.Gui
     })
-    Utils.RoundCorners(self.FloatFrame, 6)
-    Utils.AddStroke(self.FloatFrame, 1, NagaxLib.Theme.Colors.Border)
-    
-    -- Sombra sutil (opcional, simulada com frame)
+    Utils.RoundCorners(self.FloatFrame, 7)
+    Utils.AddStroke(self.FloatFrame, 1, NagaxLib.Theme.Colors.Accent.Dark)
+
+    -- Sombra
     local shadow = Utils.Create("Frame", {
-        Size = UDim2.new(1, 4, 1, 4),
-        Position = UDim2.new(0, -2, 0, -2),
+        Size = UDim2.new(1, 6, 1, 6),
+        Position = UDim2.new(0, -3, 0, -3),
         BackgroundColor3 = Color3.new(0, 0, 0),
-        BackgroundTransparency = 0.8,
+        BackgroundTransparency = 0.75,
         BorderSizePixel = 0,
         ZIndex = Config.ZIndex.Dropdown - 1,
         Parent = self.FloatFrame
     })
-    Utils.RoundCorners(shadow, 8)
-    
-    -- Scroll
+    Utils.RoundCorners(shadow, 9)
+
+    -- ScrollingFrame interno
     self.Scroll = Utils.Create("ScrollingFrame", {
         Size = UDim2.new(1, 0, 1, 0),
         BackgroundTransparency = 1,
         BorderSizePixel = 0,
         ScrollBarThickness = 3,
-        ScrollBarImageColor3 = NagaxLib.Theme.Colors.Accent.Dark,
+        ScrollBarImageColor3 = NagaxLib.Theme.Colors.Accent.Primary,
         CanvasSize = UDim2.new(0, 0, 0, 0),
         AutomaticCanvasSize = Enum.AutomaticSize.Y,
+        ZIndex = Config.ZIndex.Dropdown,
         Parent = self.FloatFrame
     })
-    
+
     Utils.Create("UIPadding", {
-        PaddingTop = UDim.new(0, 3),
-        PaddingBottom = UDim.new(0, 3),
-        PaddingLeft = UDim.new(0, 3),
-        PaddingRight = UDim.new(0, 3),
+        PaddingTop    = UDim.new(0, PAD),
+        PaddingBottom = UDim.new(0, PAD),
+        PaddingLeft   = UDim.new(0, 5),
+        PaddingRight  = UDim.new(0, 5),
         Parent = self.Scroll
     })
-    
-    local listLayout = Utils.Create("UIListLayout", {
-        Padding = UDim.new(0, 2),
+    Utils.Create("UIListLayout", {
+        Padding = UDim.new(0, 3),
+        SortOrder = Enum.SortOrder.LayoutOrder,
         Parent = self.Scroll
     })
-    
-    -- Build Options
-    self:BuildOptions()
-    
-    -- Eventos
-    self:Connect(self.Header.MouseEnter, function()
-        Utils.Tween(self.Instance, {BackgroundColor3 = NagaxLib.Theme.Colors.Background.Hover}, 0.1)
-    end)
-    
-    self:Connect(self.Header.MouseLeave, function()
-        Utils.Tween(self.Instance, {BackgroundColor3 = NagaxLib.Theme.Colors.Background.Quaternary}, 0.1)
-    end)
-    
-    self:Connect(self.Header.MouseButton1Click, function()
-        self:Toggle()
-    end)
-    
-    -- Atualiza posição quando a janela move (listener do render step otimizado)
+
+    self:_PopulateOptions()
+
+    -- Atualiza posição enquanto aberto (janela pode mover)
     self:Connect(Services.RunService.Heartbeat, function()
-        if self.IsOpen and self.Instance and self.Instance.Parent then
-            local absPos = self.Instance.AbsolutePosition
-            local absSize = self.Instance.AbsoluteSize
-            
-            -- Só atualiza se mudou significativamente (evita jitter)
-            local currentPos = self.FloatFrame.Position
-            local targetX = absPos.X
-            local targetY = absPos.Y + absSize.Y
-            
-            if math.abs(currentPos.X.Offset - targetX) > 1 or 
-               math.abs(currentPos.Y.Offset - targetY) > 1 then
-                self.FloatFrame.Position = UDim2.new(0, targetX, 0, targetY)
-                self.FloatFrame.Size = UDim2.new(0, absSize.X, 0, self.FloatFrame.Size.Y.Offset)
-            end
+        if not self.IsOpen or not self.Instance or not self.Instance.Parent then return end
+        local p = self.Instance.AbsolutePosition
+        local s = self.Instance.AbsoluteSize
+        local fp = self.FloatFrame.Position
+        local tx, ty = p.X, p.Y + s.Y + 2
+        if math.abs(fp.X.Offset - tx) > 1 or math.abs(fp.Y.Offset - ty) > 1 then
+            self.FloatFrame.Position = UDim2.new(0, tx, 0, ty)
+            self.FloatFrame.Size     = UDim2.new(0, s.X, 0, self.FloatFrame.Size.Y.Offset)
         end
     end)
-    
-    if self.Callback then
-        task.spawn(self.Callback, self.Selected)
-    end
-    
-    return self
 end
 
-function DropdownComponent:BuildOptions()
-    -- Limpa existentes
+function DropdownComponent:_PopulateOptions()
+    -- Remove itens antigos (preserva UIListLayout e UIPadding)
     for _, child in ipairs(self.Scroll:GetChildren()) do
-        if child:IsA("TextButton") then
-            child:Destroy()
-        end
+        if child:IsA("TextButton") then child:Destroy() end
     end
-    
-    for _, opt in ipairs(self.Options) do
+
+    for i, opt in ipairs(self.Options) do
+        local isSelected = tostring(opt) == self.Selected
         local btn = Utils.Create("TextButton", {
-            Size = UDim2.new(1, 0, 0, 26),
-            BackgroundColor3 = NagaxLib.Theme.Colors.Background.Tertiary,
+            Size = UDim2.new(1, 0, 0, 30),
+            BackgroundColor3 = isSelected
+                and NagaxLib.Theme.Colors.Accent.Dark
+                or  NagaxLib.Theme.Colors.Background.Tertiary,
             BorderSizePixel = 0,
-            Text = tostring(opt),
-            TextColor3 = NagaxLib.Theme.Colors.Text.Primary,
-            TextSize = 11,
-            Font = Enum.Font.Gotham,
-            TextXAlignment = Enum.TextXAlignment.Left,
+            Text = "",
             AutoButtonColor = false,
+            LayoutOrder = i,
+            ZIndex = Config.ZIndex.Dropdown + 1,
             Parent = self.Scroll
         })
-        Utils.RoundCorners(btn, 5)
-        
-        Utils.Create("UIPadding", {
-            PaddingLeft = UDim.new(0, 8),
+        Utils.RoundCorners(btn, 6)
+
+        -- Checkmark + texto
+        Utils.Create("TextLabel", {
+            Size = UDim2.new(1, -36, 1, 0),
+            Position = UDim2.new(0, 10, 0, 0),
+            BackgroundTransparency = 1,
+            Text = tostring(opt),
+            TextColor3 = isSelected
+                and NagaxLib.Theme.Colors.Text.Primary
+                or  NagaxLib.Theme.Colors.Text.Secondary,
+            TextSize = 11,
+            Font = isSelected and Enum.Font.GothamBold or Enum.Font.Gotham,
+            TextXAlignment = Enum.TextXAlignment.Left,
+            ZIndex = Config.ZIndex.Dropdown + 2,
             Parent = btn
         })
-        
-        -- Hover
+
+        if isSelected then
+            Utils.Create("TextLabel", {
+                Size = UDim2.new(0, 20, 1, 0),
+                Position = UDim2.new(1, -24, 0, 0),
+                BackgroundTransparency = 1,
+                Text = "✓",
+                TextColor3 = NagaxLib.Theme.Colors.Accent.Primary,
+                TextSize = 12,
+                Font = Enum.Font.GothamBold,
+                ZIndex = Config.ZIndex.Dropdown + 2,
+                Parent = btn
+            })
+        end
+
         local enterConn = btn.MouseEnter:Connect(function()
-            Utils.Tween(btn, {BackgroundColor3 = NagaxLib.Theme.Colors.Background.Quaternary}, 0.1)
+            if tostring(opt) ~= self.Selected then
+                Utils.Tween(btn, {BackgroundColor3 = NagaxLib.Theme.Colors.Background.Quaternary}, 0.08)
+            end
         end)
         local leaveConn = btn.MouseLeave:Connect(function()
-            Utils.Tween(btn, {BackgroundColor3 = NagaxLib.Theme.Colors.Background.Tertiary}, 0.1)
+            if tostring(opt) ~= self.Selected then
+                Utils.Tween(btn, {BackgroundColor3 = NagaxLib.Theme.Colors.Background.Tertiary}, 0.08)
+            end
         end)
-        
-        -- Seleção
         local clickConn = btn.MouseButton1Click:Connect(function()
             self:SetValue(tostring(opt))
             self:Close()
         end)
-        
+
         table.insert(self._connections, enterConn)
         table.insert(self._connections, leaveConn)
         table.insert(self._connections, clickConn)
     end
-    
-    -- Calcula altura máxima (max 5 itens visíveis)
-    local itemHeight = 28
-    local maxHeight = math.min(#self.Options * itemHeight + 6, 5 * itemHeight + 6)
-    self.TargetHeight = maxHeight
 end
 
 function DropdownComponent:Toggle()
-    if self.IsOpen then
-        self:Close()
-    else
-        self:Open()
-    end
+    if self.IsOpen then self:Close() else self:Open() end
 end
 
 function DropdownComponent:Open()
     if self.IsOpen then return end
-    
-    -- Fecha outros dropdowns abertos
+    self:_BuildFloat()  -- cria na primeira vez
+
+    -- Recalcula posição exata agora
+    local absPos  = self.Instance.AbsolutePosition
+    local absSize = self.Instance.AbsoluteSize
+    self.FloatFrame.Position = UDim2.new(0, absPos.X, 0, absPos.Y + absSize.Y + 2)
+    self.FloatFrame.Size     = UDim2.new(0, absSize.X, 0, 0)
+
     NagaxLib.Overlay.RegisterDropdown(self)
-    
     self.IsOpen = true
     self.FloatFrame.Visible = true
-    self.FloatFrame.Size = UDim2.new(0, self.FloatFrame.Size.X.Offset, 0, 0)
-    
-    -- Animação de abertura
-    Utils.Tween(self.FloatFrame, {Size = UDim2.new(0, self.FloatFrame.Size.X.Offset, 0, self.TargetHeight)}, 0.2)
-    Utils.Tween(self.Arrow, {Rotation = 180}, 0.2)
+
+    Utils.Tween(self.FloatFrame, {Size = UDim2.new(0, absSize.X, 0, self.TargetHeight)}, 0.18)
+    Utils.Tween(self.Arrow, {Rotation = 180}, 0.18)
+    -- Borda destaque enquanto aberto
+    Utils.Tween(self.Instance, {BackgroundColor3 = NagaxLib.Theme.Colors.Background.Hover}, 0.1)
 end
 
 function DropdownComponent:Close()
     if not self.IsOpen then return end
-    
     self.IsOpen = false
-    Utils.Tween(self.FloatFrame, {Size = UDim2.new(0, self.FloatFrame.Size.X.Offset, 0, 0)}, 0.2, function()
+
+    local w = self.FloatFrame.Size.X.Offset
+    Utils.Tween(self.FloatFrame, {Size = UDim2.new(0, w, 0, 0)}, 0.15, function()
         if not self.IsOpen then
             self.FloatFrame.Visible = false
         end
     end)
-    Utils.Tween(self.Arrow, {Rotation = 0}, 0.2)
-    
+    Utils.Tween(self.Arrow, {Rotation = 0}, 0.15)
+    Utils.Tween(self.Instance, {BackgroundColor3 = NagaxLib.Theme.Colors.Background.Quaternary}, 0.1)
     NagaxLib.Overlay.ClearDropdown()
 end
 
 function DropdownComponent:SetValue(value)
     if table.find(self.Options, value) then
         self.Selected = value
-        self.Header.Text = "v  " .. self.LabelText .. ":  " .. self.Selected
+        self.ValueLabel.Text = value
+        -- Atualiza visual das opções com checkmark
+        if self.FloatFrame then
+            self:_PopulateOptions()
+        end
         if self.Callback then
             self.Callback(self.Selected)
         end
@@ -779,8 +829,15 @@ function DropdownComponent:Refresh(newOptions, keepSelected)
     if not keepSelected or not table.find(self.Options, self.Selected) then
         self.Selected = tostring(self.Options[1] or "")
     end
-    self.Header.Text = "v  " .. self.LabelText .. ":  " .. self.Selected
-    self:BuildOptions()
+    self.ValueLabel.Text = self.Selected
+    -- Recalcula altura
+    local ITEM_H   = 30
+    local PAD      = 8
+    local maxItems = math.min(#self.Options, 5)
+    self.TargetHeight = maxItems * ITEM_H + PAD * 2
+    if self.FloatFrame then
+        self:_PopulateOptions()
+    end
     if self.Callback then
         self.Callback(self.Selected)
     end
@@ -790,6 +847,7 @@ function DropdownComponent:Destroy()
     self:Close()
     if self.FloatFrame then
         self.FloatFrame:Destroy()
+        self.FloatFrame = nil
     end
     ComponentBase.Destroy(self)
 end
@@ -1228,10 +1286,215 @@ function NagaxLib:MakeWindow(config)
         Utils.Tween(self.Main, {Size = targetSize}, 0.2)
     end)
     
+    -- ── BOTÃO DE PERSONALIZAÇÃO ──────────────────────────────
+    local themeBtn = Utils.Create("TextButton", {
+        Size = UDim2.new(0, 26, 0, 20),
+        Position = UDim2.new(1, -98, 0.5, -10),
+        BackgroundColor3 = NagaxLib.Theme.Colors.Accent.Dark,
+        BorderSizePixel = 0,
+        Text = "🎨",
+        TextColor3 = NagaxLib.Theme.Colors.Text.Primary,
+        TextSize = 11,
+        Font = Enum.Font.GothamBold,
+        AutoButtonColor = false,
+        ZIndex = 5,
+        Parent = self.Header
+    })
+    Utils.RoundCorners(themeBtn, 5)
+    
+    -- Painel de personalização
+    local themePanel = Utils.Create("Frame", {
+        Size = UDim2.new(0, 220, 0, 210),
+        Position = UDim2.new(1, -226, 0, Config.Window.HeaderHeight),
+        BackgroundColor3 = NagaxLib.Theme.Colors.Background.Secondary,
+        BorderSizePixel = 0,
+        Visible = false,
+        ZIndex = 20,
+        Parent = self.Main
+    })
+    Utils.RoundCorners(themePanel, 8)
+    Utils.AddStroke(themePanel, 1, NagaxLib.Theme.Colors.Border)
+    
+    -- Título do painel
+    Utils.Create("TextLabel", {
+        Size = UDim2.new(1, 0, 0, 28),
+        BackgroundColor3 = NagaxLib.Theme.Colors.Accent.Dark,
+        BorderSizePixel = 0,
+        Text = "  Personalizar Interface",
+        TextColor3 = NagaxLib.Theme.Colors.Text.Primary,
+        TextSize = 11,
+        Font = Enum.Font.GothamBold,
+        TextXAlignment = Enum.TextXAlignment.Left,
+        ZIndex = 21,
+        Parent = themePanel
+    })
+    Utils.RoundCorners(Utils.Create("Frame", {Size = UDim2.new(1,0,0,28), BackgroundTransparency=1, ZIndex=21, Parent=themePanel}), 8)
+    
+    -- Função auxiliar para criar row de cor
+    local function makeColorRow(labelText, yPos, getColor, setColor)
+        Utils.Create("TextLabel", {
+            Size = UDim2.new(0, 120, 0, 22),
+            Position = UDim2.new(0, 10, 0, yPos),
+            BackgroundTransparency = 1,
+            Text = labelText,
+            TextColor3 = NagaxLib.Theme.Colors.Text.Secondary,
+            TextSize = 10,
+            Font = Enum.Font.Gotham,
+            TextXAlignment = Enum.TextXAlignment.Left,
+            ZIndex = 21,
+            Parent = themePanel
+        })
+        local swatch = Utils.Create("TextButton", {
+            Size = UDim2.new(0, 60, 0, 18),
+            Position = UDim2.new(1, -72, 0, yPos + 2),
+            BackgroundColor3 = getColor(),
+            BorderSizePixel = 0,
+            Text = "",
+            ZIndex = 22,
+            Parent = themePanel
+        })
+        Utils.RoundCorners(swatch, 4)
+        Utils.AddStroke(swatch, 1, NagaxLib.Theme.Colors.Border)
+        return swatch
+    end
+    
+    -- Cores de tema predefinidas
+    local themes = {
+        {name = "Roxo (Padrão)", accent = Color3.fromRGB(108, 79, 255)},
+        {name = "Azul Neon",     accent = Color3.fromRGB(0, 120, 255)},
+        {name = "Verde Matrix",  accent = Color3.fromRGB(0, 200, 80)},
+        {name = "Vermelho",      accent = Color3.fromRGB(220, 50, 50)},
+        {name = "Laranja",       accent = Color3.fromRGB(245, 130, 20)},
+        {name = "Rosa",          accent = Color3.fromRGB(220, 80, 180)},
+    }
+    
+    Utils.Create("TextLabel", {
+        Size = UDim2.new(1, -16, 0, 18),
+        Position = UDim2.new(0, 8, 0, 32),
+        BackgroundTransparency = 1,
+        Text = "Tema de Cor:",
+        TextColor3 = NagaxLib.Theme.Colors.Text.Secondary,
+        TextSize = 10,
+        Font = Enum.Font.GothamBold,
+        TextXAlignment = Enum.TextXAlignment.Left,
+        ZIndex = 21,
+        Parent = themePanel
+    })
+    
+    for i, theme in ipairs(themes) do
+        local col = (i - 1) % 2
+        local row = math.floor((i - 1) / 2)
+        local btn = Utils.Create("TextButton", {
+            Size = UDim2.new(0, 96, 0, 22),
+            Position = UDim2.new(0, 8 + col * 104, 0, 54 + row * 28),
+            BackgroundColor3 = theme.accent,
+            BorderSizePixel = 0,
+            Text = theme.name,
+            TextColor3 = Color3.new(1,1,1),
+            TextSize = 9,
+            Font = Enum.Font.GothamBold,
+            AutoButtonColor = false,
+            ZIndex = 22,
+            Parent = themePanel
+        })
+        Utils.RoundCorners(btn, 5)
+        btn.MouseButton1Click:Connect(function()
+            NagaxLib.Theme.Colors.Accent.Primary   = theme.accent
+            NagaxLib.Theme.Colors.Accent.Secondary = Color3.fromRGB(
+                math.min(theme.accent.R * 255 + 30, 255),
+                math.min(theme.accent.G * 255 + 30, 255),
+                math.min(theme.accent.B * 255 + 30, 255)
+            )
+            NagaxLib.Theme.Colors.Accent.Dark = Color3.fromRGB(
+                math.max(theme.accent.R * 255 - 30, 0),
+                math.max(theme.accent.G * 255 - 30, 0),
+                math.max(theme.accent.B * 255 - 30, 0)
+            )
+            NagaxLib.Theme._propagate("Accent", "Primary",   NagaxLib.Theme.Colors.Accent.Primary)
+            NagaxLib.Theme._propagate("Accent", "Secondary", NagaxLib.Theme.Colors.Accent.Secondary)
+            NagaxLib.Theme._propagate("Accent", "Dark",      NagaxLib.Theme.Colors.Accent.Dark)
+            -- Atualiza botões ativos da sidebar
+            if self.ActiveTab then
+                self.ActiveTab.Button.BackgroundColor3 = NagaxLib.Theme.Colors.Accent.Primary
+            end
+        end)
+    end
+    
+    -- Separador
+    Utils.Create("Frame", {
+        Size = UDim2.new(1, -16, 0, 1),
+        Position = UDim2.new(0, 8, 0, 142),
+        BackgroundColor3 = NagaxLib.Theme.Colors.Border,
+        BorderSizePixel = 0,
+        ZIndex = 21,
+        Parent = themePanel
+    })
+    
+    -- Opções de fundo escuro/claro
+    Utils.Create("TextLabel", {
+        Size = UDim2.new(1, -16, 0, 18),
+        Position = UDim2.new(0, 8, 0, 148),
+        BackgroundTransparency = 1,
+        Text = "Fundo:",
+        TextColor3 = NagaxLib.Theme.Colors.Text.Secondary,
+        TextSize = 10,
+        Font = Enum.Font.GothamBold,
+        TextXAlignment = Enum.TextXAlignment.Left,
+        ZIndex = 21,
+        Parent = themePanel
+    })
+    
+    local bgOptions = {
+        {label = "Escuro (Padrão)", bg = Color3.fromRGB(13, 13, 20)},
+        {label = "Cinza Escuro",    bg = Color3.fromRGB(20, 20, 30)},
+        {label = "Azul Escuro",     bg = Color3.fromRGB(10, 14, 28)},
+    }
+    for i, opt in ipairs(bgOptions) do
+        local btn2 = Utils.Create("TextButton", {
+            Size = UDim2.new(0, 62, 0, 20),
+            Position = UDim2.new(0, 8 + (i-1) * 68, 0, 168),
+            BackgroundColor3 = opt.bg,
+            BorderSizePixel = 0,
+            Text = opt.label,
+            TextColor3 = Color3.new(1,1,1),
+            TextSize = 8,
+            Font = Enum.Font.Gotham,
+            AutoButtonColor = false,
+            ZIndex = 22,
+            Parent = themePanel
+        })
+        Utils.RoundCorners(btn2, 4)
+        Utils.AddStroke(btn2, 1, NagaxLib.Theme.Colors.Border)
+        btn2.MouseButton1Click:Connect(function()
+            NagaxLib.Theme.Colors.Background.Primary = opt.bg
+            self.Main.BackgroundColor3 = opt.bg
+        end)
+    end
+    
+    -- Toggle do painel de tema
+    local themePanelOpen = false
+    themeBtn.MouseButton1Click:Connect(function()
+        themePanelOpen = not themePanelOpen
+        themePanel.Visible = themePanelOpen
+        Utils.Tween(themeBtn, {
+            BackgroundColor3 = themePanelOpen and NagaxLib.Theme.Colors.Accent.Primary or NagaxLib.Theme.Colors.Accent.Dark
+        }, 0.15)
+    end)
+    themeBtn.MouseEnter:Connect(function()
+        if not themePanelOpen then
+            Utils.Tween(themeBtn, {BackgroundColor3 = NagaxLib.Theme.Colors.Accent.Primary}, 0.1)
+        end
+    end)
+    themeBtn.MouseLeave:Connect(function()
+        if not themePanelOpen then
+            Utils.Tween(themeBtn, {BackgroundColor3 = NagaxLib.Theme.Colors.Accent.Dark}, 0.1)
+        end
+    end)
+    
     -- Body
     local body = Utils.Create("Frame", {
         Name = "Body",
-        Size = UDim2.new(1, 0, 1, -Config.Window.HeaderHeight),
+        Size = UDim2.new(1, 0, 1, -(Config.Window.HeaderHeight + Config.Window.StatusHeight)),
         Position = UDim2.new(0, 0, 0, Config.Window.HeaderHeight),
         BackgroundTransparency = 1,
         ClipsDescendants = true,
@@ -1251,14 +1514,6 @@ function NagaxLib:MakeWindow(config)
         Parent = body
     })
     
-    Utils.Create("Frame", { -- Borda direita
-        Size = UDim2.new(0, 1, 1, 0),
-        Position = UDim2.new(1, -1, 0, 0),
-        BackgroundColor3 = NagaxLib.Theme.Colors.Accent.Dark,
-        BorderSizePixel = 0,
-        Parent = self.Sidebar
-    })
-    
     Utils.Create("UIPadding", {
         PaddingTop = UDim.new(0, 6),
         PaddingBottom = UDim.new(0, 6),
@@ -1270,7 +1525,17 @@ function NagaxLib:MakeWindow(config)
     Utils.Create("UIListLayout", {
         Padding = UDim.new(0, 2),
         HorizontalAlignment = Enum.HorizontalAlignment.Center,
+        SortOrder = Enum.SortOrder.LayoutOrder,
         Parent = self.Sidebar
+    })
+    
+    -- Borda direita da sidebar (fora do ScrollingFrame para não afetar layout)
+    Utils.Create("Frame", {
+        Size = UDim2.new(0, 1, 1, 0),
+        Position = UDim2.new(0, Config.Window.SidebarWidth - 1, 0, 0),
+        BackgroundColor3 = NagaxLib.Theme.Colors.Accent.Dark,
+        BorderSizePixel = 0,
+        Parent = body
     })
     
     -- Main Panel
@@ -1387,4 +1652,3 @@ end
 
 -- Exportação
 return NagaxLib
-

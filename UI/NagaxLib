@@ -1,1 +1,1392 @@
-$(cat /home/ubuntu/upload/NagaxLib\(1\).txt)
+local NagaxLib = {
+    Version = "7.0.0",
+    _initialized = false,
+    _activeDropdown = nil,
+    _components = {},
+    _themeCallbacks = {},
+    _windows = {}
+}
+
+-- ── SERVIÇOS & CACHE ─────────────────────────────────────────
+local Services = {
+    Players = game:GetService("Players"),
+    RunService = game:GetService("RunService"),
+    UserInputService = game:GetService("UserInputService"),
+    TweenService = game:GetService("TweenService"),
+    CoreGui = game:GetService("CoreGui"),
+    TextService = game:GetService("TextService")
+}
+
+local LocalPlayer = Services.Players.LocalPlayer
+local PlayerGui = LocalPlayer:WaitForChild("PlayerGui")
+
+-- ── CONFIGURAÇÃO GLOBAL ──────────────────────────────────────
+local Config = {
+    Window = {
+        Width = 560,
+        Height = 390,
+        MinScale = 0.5,
+        MaxScale = 1.5,
+        CornerRadius = 12,
+        HeaderHeight = 44,
+        SidebarWidth = 148,
+        StatusHeight = 22
+    },
+    Animation = {
+        Duration = 0.15,
+        Style = Enum.EasingStyle.Quart,
+        Direction = Enum.EasingDirection.Out
+    },
+    ZIndex = {
+        Window = 10,
+        Overlay = 100,
+        Dropdown = 150,
+        Tooltip = 200
+    }
+}
+
+-- ── PALETA DE CORES (Sistema Temático Reativo) ───────────────
+NagaxLib.Theme = {
+    Colors = {
+        Background = {
+            Primary = Color3.fromRGB(13, 13, 20),
+            Secondary = Color3.fromRGB(19, 19, 31),
+            Tertiary = Color3.fromRGB(26, 26, 42),
+            Quaternary = Color3.fromRGB(34, 34, 53),
+            Hover = Color3.fromRGB(42, 42, 66)
+        },
+        Accent = {
+            Primary = Color3.fromRGB(108, 79, 255),
+            Secondary = Color3.fromRGB(139, 111, 255),
+            Dark = Color3.fromRGB(74, 53, 204),
+            Gradient = {Color3.fromRGB(108, 79, 255), Color3.fromRGB(139, 111, 255)}
+        },
+        State = {
+            On = Color3.fromRGB(45, 190, 90),
+            Off = Color3.fromRGB(42, 42, 66),
+            Error = Color3.fromRGB(200, 50, 50),
+            Warning = Color3.fromRGB(245, 158, 11)
+        },
+        Text = {
+            Primary = Color3.fromRGB(232, 232, 255),
+            Secondary = Color3.fromRGB(144, 144, 184),
+            Tertiary = Color3.fromRGB(90, 90, 122),
+            Shadow = Color3.fromRGB(0, 0, 0)
+        },
+        Border = Color3.fromRGB(42, 42, 66)
+    },
+    
+    -- Atualiza cor e propaga para todos os elementos registrados
+    Set = function(category, key, color)
+        if NagaxLib.Theme.Colors[category] and NagaxLib.Theme.Colors[category][key] then
+            NagaxLib.Theme.Colors[category][key] = color
+            NagaxLib.Theme._propagate(category, key, color)
+        end
+    end,
+    
+    -- Registra callback para atualização de tema
+    OnUpdate = function(id, callback)
+        NagaxLib._themeCallbacks[id] = callback
+    end,
+    
+    -- Remove registro
+    RemoveListener = function(id)
+        NagaxLib._themeCallbacks[id] = nil
+    end,
+    
+    _propagate = function(cat, key, color)
+        for id, callback in pairs(NagaxLib._themeCallbacks) do
+            task.spawn(function()
+                callback(cat, key, color)
+            end)
+        end
+    end
+}
+
+-- ── UTILITÁRIOS OTIMIZADOS ───────────────────────────────────
+local Utils = {}
+
+function Utils.Create(className, properties)
+    local instance = Instance.new(className)
+    for prop, value in pairs(properties or {}) do
+        if prop ~= "Parent" then
+            instance[prop] = value
+        end
+    end
+    if properties and properties.Parent then
+        instance.Parent = properties.Parent
+    end
+    return instance
+end
+
+function Utils.Tween(instance, properties, duration, callback)
+    duration = duration or Config.Animation.Duration
+    local tween = Services.TweenService:Create(
+        instance, 
+        TweenInfo.new(duration, Config.Animation.Style, Config.Animation.Direction),
+        properties
+    )
+    if callback then
+        tween.Completed:Connect(callback)
+    end
+    tween:Play()
+    return tween
+end
+
+function Utils.RoundCorners(instance, radius)
+    local corner = Instance.new("UICorner")
+    corner.CornerRadius = UDim.new(0, radius or 6)
+    corner.Parent = instance
+    return corner
+end
+
+function Utils.AddStroke(instance, thickness, color, transparency)
+    local stroke = Instance.new("UIStroke")
+    stroke.Thickness = thickness or 1
+    stroke.Color = color or NagaxLib.Theme.Colors.Border
+    stroke.Transparency = transparency or 0
+    stroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+    stroke.Parent = instance
+    return stroke
+end
+
+function Utils.CopyTable(tbl)
+    local copy = {}
+    for k, v in pairs(tbl) do
+        if type(v) == "table" then
+            copy[k] = Utils.CopyTable(v)
+        else
+            copy[k] = v
+        end
+    end
+    return copy
+end
+
+-- ── SISTEMA DE OVERLAY (DROPDOWNS FLUTUANTES) ────────────────
+NagaxLib.Overlay = {
+    Gui = nil,
+    ActiveDropdown = nil,
+    
+    Init = function()
+        if NagaxLib.Overlay.Gui then return end
+        
+        NagaxLib.Overlay.Gui = Utils.Create("ScreenGui", {
+            Name = "NagaxLibOverlay",
+            Parent = PlayerGui,
+            ZIndexBehavior = Enum.ZIndexBehavior.Global,
+            DisplayOrder = Config.ZIndex.Overlay,
+            ResetOnSpawn = false,
+            IgnoreGuiInset = true
+        })
+        
+        -- Fecha dropdown ao clicar fora
+        Services.UserInputService.InputBegan:Connect(function(input, gameProcessed)
+            if gameProcessed then return end
+            if input.UserInputType == Enum.UserInputType.MouseButton1 or 
+               input.UserInputType == Enum.UserInputType.Touch then
+                
+                if NagaxLib.Overlay.ActiveDropdown then
+                    local mousePos = Services.UserInputService:GetMouseLocation()
+                    local dropdown = NagaxLib.Overlay.ActiveDropdown
+                    
+                    -- Verifica se clicou fora do dropdown
+                    if dropdown.Frame then
+                        local pos = dropdown.Frame.AbsolutePosition
+                        local size = dropdown.Frame.AbsoluteSize
+                        
+                        if mousePos.X < pos.X or mousePos.X > pos.X + size.X or
+                           mousePos.Y < pos.Y or mousePos.Y > pos.Y + size.Y then
+                            dropdown:Close()
+                        end
+                    end
+                end
+            end
+        end)
+    end,
+    
+    RegisterDropdown = function(dropdownObj)
+        if NagaxLib.Overlay.ActiveDropdown and NagaxLib.Overlay.ActiveDropdown ~= dropdownObj then
+            NagaxLib.Overlay.ActiveDropdown:Close()
+        end
+        NagaxLib.Overlay.ActiveDropdown = dropdownObj
+    end,
+    
+    ClearDropdown = function()
+        NagaxLib.Overlay.ActiveDropdown = nil
+    end
+}
+
+-- ── CLASSE BASE DE COMPONENTES ───────────────────────────────
+local ComponentBase = {}
+ComponentBase.__index = ComponentBase
+
+function ComponentBase.new(type, parent)
+    local self = setmetatable({}, ComponentBase)
+    self.Type = type
+    self.Parent = parent
+    self.ThemeId = type .. "_" .. tostring(math.random(100000))
+    self.Instance = nil
+    self._connections = {}
+    return self
+end
+
+function ComponentBase:Connect(event, callback)
+    local conn = event:Connect(callback)
+    table.insert(self._connections, conn)
+    return conn
+end
+
+function ComponentBase:Destroy()
+    for _, conn in ipairs(self._connections) do
+        conn:Disconnect()
+    end
+    if self.Instance then
+        self.Instance:Destroy()
+    end
+    NagaxLib.Theme.RemoveListener(self.ThemeId)
+end
+
+function ComponentBase:UpdateTheme(category, key, color)
+    -- Sobrescrito por componentes específicos
+end
+
+-- ── COMPONENTES OTIMIZADOS ───────────────────────────────────
+
+-- TOGGLE (Atualizado com API padronizada)
+local ToggleComponent = setmetatable({}, {__index = ComponentBase})
+ToggleComponent.__index = ToggleComponent
+
+function ToggleComponent:Create(parent, label, default, callback)
+    local self = setmetatable(ComponentBase.new("Toggle", parent), ToggleComponent)
+    
+    self.State = default == true
+    self.Callback = callback
+    
+    -- Container
+    self.Instance = Utils.Create("Frame", {
+        Size = UDim2.new(1, 0, 0, 34),
+        BackgroundColor3 = NagaxLib.Theme.Colors.Background.Quaternary,
+        BorderSizePixel = 0,
+        Parent = parent
+    })
+    Utils.RoundCorners(self.Instance, 7)
+    Utils.AddStroke(self.Instance, 1, NagaxLib.Theme.Colors.Border)
+    
+    -- Label
+    self.Label = Utils.Create("TextLabel", {
+        Size = UDim2.new(1, -52, 1, 0),
+        Position = UDim2.new(0, 10, 0, 0),
+        BackgroundTransparency = 1,
+        Text = label or "",
+        TextColor3 = NagaxLib.Theme.Colors.Text.Primary,
+        TextSize = 11,
+        Font = Enum.Font.Gotham,
+        TextXAlignment = Enum.TextXAlignment.Left,
+        TextWrapped = true,
+        Parent = self.Instance
+    })
+    
+    -- Pill (Track)
+    self.Pill = Utils.Create("Frame", {
+        Size = UDim2.new(0, 36, 0, 18),
+        Position = UDim2.new(1, -44, 0.5, -9),
+        BackgroundColor3 = self.State and NagaxLib.Theme.Colors.State.On or NagaxLib.Theme.Colors.State.Off,
+        BorderSizePixel = 0,
+        Parent = self.Instance
+    })
+    Utils.RoundCorners(self.Pill, 9)
+    
+    -- Knob
+    self.Knob = Utils.Create("Frame", {
+        Size = UDim2.new(0, 14, 0, 14),
+        Position = self.State and UDim2.new(1, -16, 0.5, -7) or UDim2.new(0, 2, 0.5, -7),
+        BackgroundColor3 = NagaxLib.Theme.Colors.Text.Primary,
+        BorderSizePixel = 0,
+        Parent = self.Pill
+    })
+    Utils.RoundCorners(self.Knob, 7)
+    
+    -- Hitbox
+    self.Hitbox = Utils.Create("TextButton", {
+        Size = UDim2.new(1, 0, 1, 0),
+        BackgroundTransparency = 1,
+        Text = "",
+        ZIndex = 3,
+        Parent = self.Instance
+    })
+    
+    -- Interação
+    self:Connect(self.Hitbox.MouseEnter, function()
+        Utils.Tween(self.Instance, {BackgroundColor3 = NagaxLib.Theme.Colors.Background.Hover}, 0.1)
+    end)
+    
+    self:Connect(self.Hitbox.MouseLeave, function()
+        Utils.Tween(self.Instance, {BackgroundColor3 = NagaxLib.Theme.Colors.Background.Quaternary}, 0.1)
+    end)
+    
+    self:Connect(self.Hitbox.MouseButton1Click, function()
+        self:SetValue(not self.State)
+    end)
+    
+    -- Tema reativo
+    NagaxLib.Theme.OnUpdate(self.ThemeId, function(cat, key, color)
+        if cat == "State" and key == "On" and self.State then
+            self.Pill.BackgroundColor3 = color
+        elseif cat == "State" and key == "Off" and not self.State then
+            self.Pill.BackgroundColor3 = color
+        elseif cat == "Text" and key == "Primary" then
+            self.Knob.BackgroundColor3 = color
+            self.Label.TextColor3 = color
+        end
+    end)
+    
+    -- Callback inicial
+    if self.Callback and self.State then
+        task.spawn(self.Callback, self.State)
+    end
+    
+    return self
+end
+
+function ToggleComponent:SetValue(value)
+    if self.State == value then return end
+    self.State = value
+    
+    local targetColor = self.State and NagaxLib.Theme.Colors.State.On or NagaxLib.Theme.Colors.State.Off
+    Utils.Tween(self.Pill, {BackgroundColor3 = targetColor}, 0.15)
+    Utils.Tween(self.Knob, {
+        Position = self.State and UDim2.new(1, -16, 0.5, -7) or UDim2.new(0, 2, 0.5, -7)
+    }, 0.15)
+    
+    if self.Callback then
+        task.spawn(self.Callback, self.State)
+    end
+end
+
+function ToggleComponent:GetValue()
+    return self.State
+end
+
+-- SLIDER (Otimizado - só processa input quando necessário)
+local SliderComponent = setmetatable({}, {__index = ComponentBase})
+SliderComponent.__index = SliderComponent
+
+function SliderComponent:Create(parent, label, min, max, default, callback, precise)
+    local self = setmetatable(ComponentBase.new("Slider", parent), SliderComponent)
+    
+    self.Min = min or 0
+    self.Max = max or 100
+    self.Value = math.clamp(default or self.Min, self.Min, self.Max)
+    self.Callback = callback
+    self.Precise = precise or false
+    self.Dragging = false
+    
+    local range = self.Max - self.Min
+    
+    -- Container
+    self.Instance = Utils.Create("Frame", {
+        Size = UDim2.new(1, 0, 0, 50),
+        BackgroundColor3 = NagaxLib.Theme.Colors.Background.Quaternary,
+        BorderSizePixel = 0,
+        Parent = parent
+    })
+    Utils.RoundCorners(self.Instance, 7)
+    Utils.AddStroke(self.Instance, 1, NagaxLib.Theme.Colors.Border)
+    
+    -- Label
+    self.Label = Utils.Create("TextLabel", {
+        Size = UDim2.new(1, -16, 0, 18),
+        Position = UDim2.new(0, 8, 0, 4),
+        BackgroundTransparency = 1,
+        Text = (label or "") .. ": " .. tostring(self.Value),
+        TextColor3 = NagaxLib.Theme.Colors.Text.Primary,
+        TextSize = 11,
+        Font = Enum.Font.Gotham,
+        TextXAlignment = Enum.TextXAlignment.Left,
+        Parent = self.Instance
+    })
+    
+    -- Track
+    self.Track = Utils.Create("Frame", {
+        Size = UDim2.new(1, -18, 0, 6),
+        Position = UDim2.new(0, 9, 0, 30),
+        BackgroundColor3 = NagaxLib.Theme.Colors.State.Off,
+        BorderSizePixel = 0,
+        Parent = self.Instance
+    })
+    Utils.RoundCorners(self.Track, 3)
+    
+    -- Fill
+    local pct = (self.Value - self.Min) / range
+    self.Fill = Utils.Create("Frame", {
+        Size = UDim2.new(pct, 0, 1, 0),
+        BackgroundColor3 = NagaxLib.Theme.Colors.Accent.Primary,
+        BorderSizePixel = 0,
+        Parent = self.Track
+    })
+    Utils.RoundCorners(self.Fill, 3)
+    
+    -- Knob
+    self.Knob = Utils.Create("Frame", {
+        Size = UDim2.new(0, 18, 0, 18),
+        AnchorPoint = Vector2.new(0.5, 0.5),
+        Position = UDim2.new(pct, 0, 0.5, 0),
+        BackgroundColor3 = NagaxLib.Theme.Colors.Text.Primary,
+        BorderSizePixel = 0,
+        ZIndex = 3,
+        Parent = self.Track
+    })
+    Utils.RoundCorners(self.Knob, 9)
+    
+    -- Hitbox (área maior para facilitar toque)
+    self.Hitbox = Utils.Create("TextButton", {
+        Size = UDim2.new(1, 0, 4, 8),
+        Position = UDim2.new(0, 0, 0, -10),
+        BackgroundTransparency = 1,
+        Text = "",
+        ZIndex = 5,
+        Parent = self.Track
+    })
+    
+    -- Lógica de arrasto otimizada
+    self:Connect(self.Hitbox.InputBegan, function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 or 
+           input.UserInputType == Enum.UserInputType.Touch then
+            self.Dragging = true
+            self:UpdateFromInput(input.Position.X)
+        end
+    end)
+    
+    self:Connect(Services.UserInputService.InputChanged, function(input)
+        if not self.Dragging then return end
+        if input.UserInputType == Enum.UserInputType.MouseMovement or 
+           input.UserInputType == Enum.UserInputType.Touch then
+            self:UpdateFromInput(input.Position.X)
+        end
+    end)
+    
+    self:Connect(Services.UserInputService.InputEnded, function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 or 
+           input.UserInputType == Enum.UserInputType.Touch then
+            self.Dragging = false
+        end
+    end)
+    
+    -- Tema
+    NagaxLib.Theme.OnUpdate(self.ThemeId, function(cat, key, color)
+        if cat == "Accent" and key == "Primary" then
+            self.Fill.BackgroundColor3 = color
+        elseif cat == "State" and key == "Off" then
+            self.Track.BackgroundColor3 = color
+        end
+    end)
+    
+    if self.Callback then
+        task.spawn(self.Callback, self.Value)
+    end
+    
+    return self
+end
+
+function SliderComponent:UpdateFromInput(mouseX)
+    local trackPos = self.Track.AbsolutePosition.X
+    local trackWidth = self.Track.AbsoluteSize.X
+    local pct = math.clamp((mouseX - trackPos) / math.max(trackWidth, 1), 0, 1)
+    
+    local rawValue = self.Min + (pct * (self.Max - self.Min))
+    self.Value = self.Precise and rawValue or math.floor(rawValue + 0.5)
+    
+    self.Fill.Size = UDim2.new(pct, 0, 1, 0)
+    self.Knob.Position = UDim2.new(pct, 0, 0.5, 0)
+    self.Label.Text = self.Label.Text:gsub(": .*", ": " .. tostring(self.Value))
+    
+    if self.Callback then
+        self.Callback(self.Value)
+    end
+end
+
+function SliderComponent:SetValue(value)
+    self.Value = math.clamp(value, self.Min, self.Max)
+    local pct = (self.Value - self.Min) / (self.Max - self.Min)
+    self.Fill.Size = UDim2.new(pct, 0, 1, 0)
+    self.Knob.Position = UDim2.new(pct, 0, 0.5, 0)
+    self.Label.Text = self.Label.Text:gsub(": .*", ": " .. tostring(self.Value))
+    if self.Callback then
+        self.Callback(self.Value)
+    end
+end
+
+function SliderComponent:GetValue()
+    return self.Value
+end
+
+-- DROPDOWN (Sistema Overlay Flutuante - Profissional)
+local DropdownComponent = setmetatable({}, {__index = ComponentBase})
+DropdownComponent.__index = DropdownComponent
+
+function DropdownComponent:Create(parent, label, options, callback)
+    local self = setmetatable(ComponentBase.new("Dropdown", parent), DropdownComponent)
+    
+    self.LabelText = label or "Select"
+    self.Options = options or {}
+    self.Selected = tostring(self.Options[1] or "")
+    self.Callback = callback
+    self.IsOpen = false
+    
+    -- Inicializa overlay se necessário
+    NagaxLib.Overlay.Init()
+    
+    -- Container Principal (só o header visível)
+    self.Instance = Utils.Create("Frame", {
+        Size = UDim2.new(1, 0, 0, 34),
+        BackgroundColor3 = NagaxLib.Theme.Colors.Background.Quaternary,
+        BorderSizePixel = 0,
+        ClipsDescendants = false,
+        Parent = parent
+    })
+    Utils.RoundCorners(self.Instance, 7)
+    Utils.AddStroke(self.Instance, 1, NagaxLib.Theme.Colors.Border)
+    
+    -- Header (botão que abre)
+    self.Header = Utils.Create("TextButton", {
+        Size = UDim2.new(1, 0, 1, 0),
+        BackgroundTransparency = 1,
+        Text = "v  " .. self.LabelText .. ":  " .. self.Selected,
+        TextColor3 = NagaxLib.Theme.Colors.Text.Primary,
+        TextSize = 11,
+        Font = Enum.Font.Gotham,
+        TextXAlignment = Enum.TextXAlignment.Left,
+        AutoButtonColor = false,
+        Parent = self.Instance
+    })
+    
+    Utils.Create("UIPadding", {
+        PaddingLeft = UDim.new(0, 10),
+        Parent = self.Header
+    })
+    
+    -- Arrow Icon (usando texto por simplicidade, mas pode ser ImageLabel)
+    self.Arrow = Utils.Create("TextLabel", {
+        Size = UDim2.new(0, 20, 1, 0),
+        Position = UDim2.new(1, -25, 0, 0),
+        BackgroundTransparency = 1,
+        Text = "▼",
+        TextColor3 = NagaxLib.Theme.Colors.Text.Secondary,
+        TextSize = 10,
+        Font = Enum.Font.GothamBold,
+        Parent = self.Header
+    })
+    
+    -- Frame Flutuante (Overlay)
+    self.FloatFrame = Utils.Create("Frame", {
+        Name = "DropdownFloat_" .. self.ThemeId,
+        Size = UDim2.new(0, self.Instance.AbsoluteSize.X, 0, 0),
+        Position = UDim2.new(0, self.Instance.AbsolutePosition.X, 0, self.Instance.AbsolutePosition.Y + 34),
+        BackgroundColor3 = NagaxLib.Theme.Colors.Background.Secondary,
+        BorderSizePixel = 0,
+        Visible = false,
+        ZIndex = Config.ZIndex.Dropdown,
+        Parent = NagaxLib.Overlay.Gui
+    })
+    Utils.RoundCorners(self.FloatFrame, 6)
+    Utils.AddStroke(self.FloatFrame, 1, NagaxLib.Theme.Colors.Border)
+    
+    -- Sombra sutil (opcional, simulada com frame)
+    local shadow = Utils.Create("Frame", {
+        Size = UDim2.new(1, 4, 1, 4),
+        Position = UDim2.new(0, -2, 0, -2),
+        BackgroundColor3 = Color3.new(0, 0, 0),
+        BackgroundTransparency = 0.8,
+        BorderSizePixel = 0,
+        ZIndex = Config.ZIndex.Dropdown - 1,
+        Parent = self.FloatFrame
+    })
+    Utils.RoundCorners(shadow, 8)
+    
+    -- Scroll
+    self.Scroll = Utils.Create("ScrollingFrame", {
+        Size = UDim2.new(1, 0, 1, 0),
+        BackgroundTransparency = 1,
+        BorderSizePixel = 0,
+        ScrollBarThickness = 3,
+        ScrollBarImageColor3 = NagaxLib.Theme.Colors.Accent.Dark,
+        CanvasSize = UDim2.new(0, 0, 0, 0),
+        AutomaticCanvasSize = Enum.AutomaticSize.Y,
+        Parent = self.FloatFrame
+    })
+    
+    Utils.Create("UIPadding", {
+        PaddingTop = UDim.new(0, 3),
+        PaddingBottom = UDim.new(0, 3),
+        PaddingLeft = UDim.new(0, 3),
+        PaddingRight = UDim.new(0, 3),
+        Parent = self.Scroll
+    })
+    
+    local listLayout = Utils.Create("UIListLayout", {
+        Padding = UDim.new(0, 2),
+        SortOrder = Enum.SortOrder.LayoutOrder,
+        Parent = self.Scroll
+    })
+    
+    -- Build Options
+    self:BuildOptions()
+    
+    -- Eventos
+    self:Connect(self.Header.MouseEnter, function()
+        Utils.Tween(self.Instance, {BackgroundColor3 = NagaxLib.Theme.Colors.Background.Hover}, 0.1)
+    end)
+    
+    self:Connect(self.Header.MouseLeave, function()
+        Utils.Tween(self.Instance, {BackgroundColor3 = NagaxLib.Theme.Colors.Background.Quaternary}, 0.1)
+    end)
+    
+    self:Connect(self.Header.MouseButton1Click, function()
+        self:Toggle()
+    end)
+    
+    -- Atualiza posição quando a janela move (listener do render step otimizado)
+    self:Connect(Services.RunService.Heartbeat, function()
+        if self.IsOpen and self.Instance and self.Instance.Parent then
+            local absPos = self.Instance.AbsolutePosition
+            local absSize = self.Instance.AbsoluteSize
+            
+            -- Só atualiza se mudou significativamente (evita jitter)
+            local currentPos = self.FloatFrame.Position
+            local targetX = absPos.X
+            local targetY = absPos.Y + absSize.Y
+            
+            if math.abs(currentPos.X.Offset - targetX) > 1 or 
+               math.abs(currentPos.Y.Offset - targetY) > 1 then
+                self.FloatFrame.Position = UDim2.new(0, targetX, 0, targetY)
+                self.FloatFrame.Size = UDim2.new(0, absSize.X, 0, self.FloatFrame.Size.Y.Offset)
+            end
+        end
+    end)
+    
+    if self.Callback then
+        task.spawn(self.Callback, self.Selected)
+    end
+    
+    return self
+end
+
+function DropdownComponent:BuildOptions()
+    -- Limpa existentes
+    for _, child in ipairs(self.Scroll:GetChildren()) do
+        if child:IsA("TextButton") then
+            child:Destroy()
+        end
+    end
+    
+    for _, opt in ipairs(self.Options) do
+        local btn = Utils.Create("TextButton", {
+            Size = UDim2.new(1, 0, 0, 26),
+            BackgroundColor3 = NagaxLib.Theme.Colors.Background.Tertiary,
+            BorderSizePixel = 0,
+            Text = tostring(opt),
+            TextColor3 = NagaxLib.Theme.Colors.Text.Primary,
+            TextSize = 11,
+            Font = Enum.Font.Gotham,
+            TextXAlignment = Enum.TextXAlignment.Left,
+            AutoButtonColor = false,
+            Parent = self.Scroll
+        })
+        Utils.RoundCorners(btn, 5)
+        
+        Utils.Create("UIPadding", {
+            PaddingLeft = UDim.new(0, 8),
+            Parent = btn
+        })
+        
+        -- Hover
+        local enterConn = btn.MouseEnter:Connect(function()
+            Utils.Tween(btn, {BackgroundColor3 = NagaxLib.Theme.Colors.Background.Quaternary}, 0.1)
+        end)
+        local leaveConn = btn.MouseLeave:Connect(function()
+            Utils.Tween(btn, {BackgroundColor3 = NagaxLib.Theme.Colors.Background.Tertiary}, 0.1)
+        end)
+        
+        -- Seleção
+        local clickConn = btn.MouseButton1Click:Connect(function()
+            self:SetValue(tostring(opt))
+            self:Close()
+        end)
+        
+        table.insert(self._connections, enterConn)
+        table.insert(self._connections, leaveConn)
+        table.insert(self._connections, clickConn)
+    end
+    
+    -- Calcula altura máxima (max 5 itens visíveis)
+    local itemHeight = 28
+    local maxHeight = math.min(#self.Options * itemHeight + 6, 5 * itemHeight + 6)
+    self.TargetHeight = maxHeight
+end
+
+function DropdownComponent:Toggle()
+    if self.IsOpen then
+        self:Close()
+    else
+        self:Open()
+    end
+end
+
+function DropdownComponent:Open()
+    if self.IsOpen then return end
+    
+    -- Fecha outros dropdowns abertos
+    NagaxLib.Overlay.RegisterDropdown(self)
+    
+    self.IsOpen = true
+    self.FloatFrame.Visible = true
+    self.FloatFrame.Size = UDim2.new(0, self.FloatFrame.Size.X.Offset, 0, 0)
+    
+    -- Animação de abertura
+    Utils.Tween(self.FloatFrame, {Size = UDim2.new(0, self.FloatFrame.Size.X.Offset, 0, self.TargetHeight)}, 0.2)
+    Utils.Tween(self.Arrow, {Rotation = 180}, 0.2)
+end
+
+function DropdownComponent:Close()
+    if not self.IsOpen then return end
+    
+    self.IsOpen = false
+    Utils.Tween(self.FloatFrame, {Size = UDim2.new(0, self.FloatFrame.Size.X.Offset, 0, 0)}, 0.2, function()
+        if not self.IsOpen then
+            self.FloatFrame.Visible = false
+        end
+    end)
+    Utils.Tween(self.Arrow, {Rotation = 0}, 0.2)
+    
+    NagaxLib.Overlay.ClearDropdown()
+end
+
+function DropdownComponent:SetValue(value)
+    if table.find(self.Options, value) then
+        self.Selected = value
+        self.Header.Text = "v  " .. self.LabelText .. ":  " .. self.Selected
+        if self.Callback then
+            self.Callback(self.Selected)
+        end
+    end
+end
+
+function DropdownComponent:GetValue()
+    return self.Selected
+end
+
+function DropdownComponent:Refresh(newOptions, keepSelected)
+    self.Options = newOptions or {}
+    if not keepSelected or not table.find(self.Options, self.Selected) then
+        self.Selected = tostring(self.Options[1] or "")
+    end
+    self.Header.Text = "v  " .. self.LabelText .. ":  " .. self.Selected
+    self:BuildOptions()
+    if self.Callback then
+        self.Callback(self.Selected)
+    end
+end
+
+function DropdownComponent:Destroy()
+    self:Close()
+    if self.FloatFrame then
+        self.FloatFrame:Destroy()
+    end
+    ComponentBase.Destroy(self)
+end
+
+-- BUTTON (Componente simples mas otimizado)
+local ButtonComponent = setmetatable({}, {__index = ComponentBase})
+ButtonComponent.__index = ButtonComponent
+
+function ButtonComponent:Create(parent, text, callback)
+    local self = setmetatable(ComponentBase.new("Button", parent), ButtonComponent)
+    
+    self.Instance = Utils.Create("Frame", {
+        Size = UDim2.new(1, 0, 0, 34),
+        BackgroundColor3 = NagaxLib.Theme.Colors.Background.Quaternary,
+        BorderSizePixel = 0,
+        Parent = parent
+    })
+    Utils.RoundCorners(self.Instance, 7)
+    Utils.AddStroke(self.Instance, 1, NagaxLib.Theme.Colors.Border)
+    
+    self.Button = Utils.Create("TextButton", {
+        Size = UDim2.new(1, -16, 0, 26),
+        Position = UDim2.new(0, 8, 0.5, -13),
+        BackgroundColor3 = NagaxLib.Theme.Colors.Accent.Primary,
+        BorderSizePixel = 0,
+        Text = text or "Button",
+        TextColor3 = NagaxLib.Theme.Colors.Text.Primary,
+        TextSize = 11,
+        Font = Enum.Font.GothamBold,
+        AutoButtonColor = false,
+        Parent = self.Instance
+    })
+    Utils.RoundCorners(self.Button, 6)
+    
+    -- Animações
+    self:Connect(self.Button.MouseEnter, function()
+        Utils.Tween(self.Button, {BackgroundColor3 = NagaxLib.Theme.Colors.Accent.Secondary}, 0.15)
+    end)
+    
+    self:Connect(self.Button.MouseLeave, function()
+        Utils.Tween(self.Button, {BackgroundColor3 = NagaxLib.Theme.Colors.Accent.Primary}, 0.15)
+    end)
+    
+    self:Connect(self.Button.MouseButton1Down, function()
+        Utils.Tween(self.Button, {BackgroundColor3 = NagaxLib.Theme.Colors.Accent.Dark}, 0.05)
+    end)
+    
+    self:Connect(self.Button.MouseButton1Up, function()
+        Utils.Tween(self.Button, {BackgroundColor3 = NagaxLib.Theme.Colors.Accent.Secondary}, 0.05)
+    end)
+    
+    self:Connect(self.Button.MouseButton1Click, function()
+        if callback then
+            task.spawn(callback)
+        end
+    end)
+    
+    -- Tema
+    NagaxLib.Theme.OnUpdate(self.ThemeId, function(cat, key, color)
+        if cat == "Accent" then
+            if key == "Primary" then
+                self.Button.BackgroundColor3 = color
+            end
+        end
+    end)
+    
+    return self
+end
+
+function ButtonComponent:SetText(text)
+    self.Button.Text = text
+end
+
+-- LABEL
+local LabelComponent = setmetatable({}, {__index = ComponentBase})
+LabelComponent.__index = LabelComponent
+
+function LabelComponent:Create(parent, text)
+    local self = setmetatable(ComponentBase.new("Label", parent), LabelComponent)
+    
+    self.Instance = Utils.Create("Frame", {
+        Size = UDim2.new(1, 0, 0, 20),
+        BackgroundTransparency = 1,
+        Parent = parent
+    })
+    
+    self.TextLabel = Utils.Create("TextLabel", {
+        Size = UDim2.new(1, -10, 1, 0),
+        Position = UDim2.new(0, 6, 0, 0),
+        BackgroundTransparency = 1,
+        Text = text or "",
+        TextColor3 = NagaxLib.Theme.Colors.Text.Secondary,
+        TextSize = 10,
+        Font = Enum.Font.Gotham,
+        TextXAlignment = Enum.TextXAlignment.Left,
+        TextWrapped = true,
+        Parent = self.Instance
+    })
+    
+    return self
+end
+
+function LabelComponent:SetText(text)
+    self.TextLabel.Text = tostring(text)
+end
+
+-- SEPARATOR
+local SeparatorComponent = setmetatable({}, {__index = ComponentBase})
+SeparatorComponent.__index = SeparatorComponent
+
+function SeparatorComponent:Create(parent, text)
+    local self = setmetatable(ComponentBase.new("Separator", parent), SeparatorComponent)
+    
+    self.Instance = Utils.Create("Frame", {
+        Size = UDim2.new(1, 0, 0, 26),
+        BackgroundTransparency = 1,
+        Parent = parent
+    })
+    
+    if text and text ~= "" then
+        local leftLine = Utils.Create("Frame", {
+            Size = UDim2.new(0.3, -4, 0, 1),
+            Position = UDim2.new(0, 0, 0.5, 0),
+            BackgroundColor3 = NagaxLib.Theme.Colors.Accent.Dark,
+            BorderSizePixel = 0,
+            Parent = self.Instance
+        })
+        
+        local label = Utils.Create("TextLabel", {
+            Size = UDim2.new(0.4, 0, 1, 0),
+            Position = UDim2.new(0.3, 0, 0, 0),
+            BackgroundTransparency = 1,
+            Text = text,
+            TextColor3 = NagaxLib.Theme.Colors.Accent.Primary,
+            TextSize = 9,
+            Font = Enum.Font.GothamBold,
+            TextXAlignment = Enum.TextXAlignment.Center,
+            Parent = self.Instance
+        })
+        
+        local rightLine = Utils.Create("Frame", {
+            Size = UDim2.new(0.3, -4, 0, 1),
+            Position = UDim2.new(0.7, 4, 0.5, 0),
+            BackgroundColor3 = NagaxLib.Theme.Colors.Accent.Dark,
+            BorderSizePixel = 0,
+            Parent = self.Instance
+        })
+    else
+        local line = Utils.Create("Frame", {
+            Size = UDim2.new(1, -10, 0, 1),
+            Position = UDim2.new(0, 5, 0.5, 0),
+            BackgroundColor3 = NagaxLib.Theme.Colors.Border,
+            BorderSizePixel = 0,
+            Parent = self.Instance
+        })
+    end
+    
+    return self
+end
+
+-- ── SISTEMA DE TAB OTIMIZADO ─────────────────────────────────
+local TabSystem = {}
+TabSystem.__index = TabSystem
+
+function TabSystem:Create(window, name)
+    local self = setmetatable({}, TabSystem)
+    
+    self.Name = name
+    self.Window = window
+    self.Components = {}
+    
+    -- Botão na Sidebar
+    self.Button = Utils.Create("TextButton", {
+        Size = UDim2.new(1, 0, 0, 32),
+        BackgroundColor3 = NagaxLib.Theme.Colors.Background.Tertiary,
+        BorderSizePixel = 0,
+        Text = name,
+        TextColor3 = NagaxLib.Theme.Colors.Text.Secondary,
+        TextSize = 11,
+        Font = Enum.Font.Gotham,
+        TextXAlignment = Enum.TextXAlignment.Left,
+        AutoButtonColor = false,
+        LayoutOrder = #window.Tabs + 1,
+        Parent = window.Sidebar
+    })
+    Utils.RoundCorners(self.Button, 7)
+    
+    Utils.Create("UIPadding", {
+        PaddingLeft = UDim.new(0, 10),
+        Parent = self.Button
+    })
+    
+    -- Container Scroll
+    self.Scroll = Utils.Create("ScrollingFrame", {
+        Name = "Scroll_" .. name,
+        Size = UDim2.new(1, 0, 1, 0),
+        BackgroundTransparency = 1,
+        BorderSizePixel = 0,
+        ScrollBarThickness = 3,
+        ScrollBarImageColor3 = NagaxLib.Theme.Colors.Accent.Dark,
+        CanvasSize = UDim2.new(0, 0, 0, 0),
+        AutomaticCanvasSize = Enum.AutomaticSize.Y,
+        Visible = false,
+        Parent = window.MainPanel
+    })
+    
+    Utils.Create("UIPadding", {
+        PaddingTop = UDim.new(0, 8),
+        PaddingBottom = UDim.new(0, 8),
+        PaddingLeft = UDim.new(0, 8),
+        PaddingRight = UDim.new(0, 10),
+        Parent = self.Scroll
+    })
+    
+    Utils.Create("UIListLayout", {
+        Padding = UDim.new(0, 4),
+        HorizontalAlignment = Enum.HorizontalAlignment.Center,
+        Parent = self.Scroll
+    })
+    
+    -- Eventos
+    self.Button.MouseEnter:Connect(function()
+        if window.ActiveTab ~= self then
+            Utils.Tween(self.Button, {BackgroundColor3 = NagaxLib.Theme.Colors.Background.Quaternary}, 0.1)
+        end
+    end)
+    
+    self.Button.MouseLeave:Connect(function()
+        if window.ActiveTab ~= self then
+            Utils.Tween(self.Button, {BackgroundColor3 = NagaxLib.Theme.Colors.Background.Tertiary}, 0.1)
+        end
+    end)
+    
+    self.Button.MouseButton1Click:Connect(function()
+        window:SelectTab(self)
+    end)
+    
+    return self
+end
+
+-- Métodos de criação de componentes (API Pública)
+function TabSystem:Toggle(label, default, callback)
+    local toggle = ToggleComponent:Create(self.Scroll, label, default, callback)
+    table.insert(self.Components, toggle)
+    return toggle
+end
+
+function TabSystem:Slider(label, min, max, default, callback, precise)
+    local slider = SliderComponent:Create(self.Scroll, label, min, max, default, callback, precise)
+    table.insert(self.Components, slider)
+    return slider
+end
+
+function TabSystem:Dropdown(label, options, callback)
+    local dropdown = DropdownComponent:Create(self.Scroll, label, options, callback)
+    table.insert(self.Components, dropdown)
+    return dropdown
+end
+
+function TabSystem:Button(label, callback)
+    local btn = ButtonComponent:Create(self.Scroll, label, callback)
+    table.insert(self.Components, btn)
+    return btn
+end
+
+function TabSystem:Label(text)
+    local lbl = LabelComponent:Create(self.Scroll, text)
+    table.insert(self.Components, lbl)
+    return lbl
+end
+
+function TabSystem:Seperator(text)
+    local sep = SeparatorComponent:Create(self.Scroll, text)
+    table.insert(self.Components, sep)
+    return sep
+end
+TabSystem.Separator = TabSystem.Seperator
+
+function TabSystem:Line()
+    return self:Seperator("")
+end
+
+-- ── JANELA PRINCIPAL (Window) ────────────────────────────────
+local Window = {}
+Window.__index = Window
+
+function NagaxLib:MakeWindow(config)
+    config = config or {}
+    
+    local self = setmetatable({}, Window)
+    self.Tabs = {}
+    self.ActiveTab = nil
+    self.DragEnabled = config.Draggable ~= false
+    self.Scale = 1.0
+    
+    -- ScreenGui
+    self.Gui = Utils.Create("ScreenGui", {
+        Name = config.Name or "NagaxLib",
+        Parent = PlayerGui,
+        ZIndexBehavior = Enum.ZIndexBehavior.Sibling,
+        ResetOnSpawn = false,
+        IgnoreGuiInset = true
+    })
+    
+    -- Main Frame
+    self.Main = Utils.Create("Frame", {
+        Name = "Main",
+        Size = UDim2.new(0, Config.Window.Width, 0, Config.Window.Height),
+        Position = UDim2.new(0.5, -Config.Window.Width/2, 0.5, -Config.Window.Height/2),
+        BackgroundColor3 = NagaxLib.Theme.Colors.Background.Primary,
+        BorderSizePixel = 0,
+        ClipsDescendants = true,
+        Parent = self.Gui
+    })
+    Utils.RoundCorners(self.Main, Config.Window.CornerRadius)
+    Utils.AddStroke(self.Main, 1, NagaxLib.Theme.Colors.Border)
+    
+    -- Shadow (simulado)
+    local shadow = Utils.Create("ImageLabel", {
+        Size = UDim2.new(1, 40, 1, 40),
+        Position = UDim2.new(0, -20, 0, -20),
+        BackgroundTransparency = 1,
+        Image = "rbxassetid://5554236805", -- Blur shadow (ou usar outro asset)
+        ImageColor3 = Color3.new(0, 0, 0),
+        ImageTransparency = 0.6,
+        ScaleType = Enum.ScaleType.Slice,
+        SliceCenter = Rect.new(20, 20, 280, 280),
+        ZIndex = -1,
+        Parent = self.Main
+    })
+    
+    -- Header
+    self.Header = Utils.Create("Frame", {
+        Name = "Header",
+        Size = UDim2.new(1, 0, 0, Config.Window.HeaderHeight),
+        BackgroundColor3 = NagaxLib.Theme.Colors.Background.Secondary,
+        BorderSizePixel = 0,
+        ZIndex = 3,
+        Parent = self.Main
+    })
+    Utils.RoundCorners(self.Header, Config.Window.CornerRadius)
+    
+    -- Correção cantos inferiores do header
+    local headerFix = Utils.Create("Frame", {
+        Size = UDim2.new(1, 0, 0, 14),
+        Position = UDim2.new(0, 0, 1, -14),
+        BackgroundColor3 = NagaxLib.Theme.Colors.Background.Secondary,
+        BorderSizePixel = 0,
+        ZIndex = 3,
+        Parent = self.Header
+    })
+    
+    -- Linha divisória
+    local headerLine = Utils.Create("Frame", {
+        Size = UDim2.new(1, 0, 0, 1),
+        Position = UDim2.new(0, 0, 1, -1),
+        BackgroundColor3 = NagaxLib.Theme.Colors.Accent.Dark,
+        BorderSizePixel = 0,
+        ZIndex = 3,
+        Parent = self.Header
+    })
+    
+    -- Logo/Title
+    local logoDot = Utils.Create("Frame", {
+        Size = UDim2.new(0, 8, 0, 8),
+        Position = UDim2.new(0, 12, 0.5, -4),
+        BackgroundColor3 = NagaxLib.Theme.Colors.Accent.Primary,
+        BorderSizePixel = 0,
+        ZIndex = 4,
+        Parent = self.Header
+    })
+    Utils.RoundCorners(logoDot, 4)
+    
+    Utils.Create("TextLabel", {
+        Size = UDim2.new(0, 200, 1, 0),
+        Position = UDim2.new(0, 26, 0, 0),
+        BackgroundTransparency = 1,
+        Text = config.Title or "Nagax HUB",
+        TextColor3 = NagaxLib.Theme.Colors.Text.Primary,
+        TextSize = 13,
+        Font = Enum.Font.GothamBold,
+        TextXAlignment = Enum.TextXAlignment.Left,
+        ZIndex = 4,
+        Parent = self.Header
+    })
+    
+    -- Botões de controle
+    local closeBtn = Utils.Create("TextButton", {
+        Size = UDim2.new(0, 26, 0, 20),
+        Position = UDim2.new(1, -34, 0.5, -10),
+        BackgroundColor3 = NagaxLib.Theme.Colors.State.Error,
+        BorderSizePixel = 0,
+        Text = "X",
+        TextColor3 = NagaxLib.Theme.Colors.Text.Primary,
+        TextSize = 10,
+        Font = Enum.Font.GothamBold,
+        AutoButtonColor = false,
+        ZIndex = 5,
+        Parent = self.Header
+    })
+    Utils.RoundCorners(closeBtn, 5)
+    
+    closeBtn.MouseEnter:Connect(function()
+        Utils.Tween(closeBtn, {BackgroundColor3 = Color3.fromRGB(224, 68, 68)}, 0.1)
+    end)
+    closeBtn.MouseLeave:Connect(function()
+        Utils.Tween(closeBtn, {BackgroundColor3 = NagaxLib.Theme.Colors.State.Error}, 0.1)
+    end)
+    closeBtn.MouseButton1Click:Connect(function()
+        self.Gui:Destroy()
+        NagaxLib.Overlay.ClearDropdown()
+    end)
+    
+    -- Minimizar
+    local minBtn = Utils.Create("TextButton", {
+        Size = UDim2.new(0, 26, 0, 20),
+        Position = UDim2.new(1, -66, 0.5, -10),
+        BackgroundColor3 = NagaxLib.Theme.Colors.Background.Quaternary,
+        BorderSizePixel = 0,
+        Text = "-",
+        TextColor3 = NagaxLib.Theme.Colors.Text.Primary,
+        TextSize = 12,
+        Font = Enum.Font.GothamBold,
+        AutoButtonColor = false,
+        ZIndex = 5,
+        Parent = self.Header
+    })
+    Utils.RoundCorners(minBtn, 5)
+    
+    local minimized = false
+    minBtn.MouseButton1Click:Connect(function()
+        minimized = not minimized
+        local targetSize = minimized and 
+            UDim2.new(0, self.Main.Size.X.Offset, 0, Config.Window.HeaderHeight) or
+            UDim2.new(0, self.Main.Size.X.Offset, 0, Config.Window.Height * self.Scale)
+        Utils.Tween(self.Main, {Size = targetSize}, 0.2)
+    end)
+    
+    -- Body
+    local body = Utils.Create("Frame", {
+        Name = "Body",
+        Size = UDim2.new(1, 0, 1, -(Config.Window.HeaderHeight + Config.Window.StatusHeight)),
+        Position = UDim2.new(0, 0, 0, Config.Window.HeaderHeight),
+        BackgroundTransparency = 1,
+        ClipsDescendants = true,
+        Parent = self.Main
+    })
+    
+    -- Sidebar
+    self.Sidebar = Utils.Create("ScrollingFrame", {
+        Name = "Sidebar",
+        Size = UDim2.new(0, Config.Window.SidebarWidth, 1, 0),
+        BackgroundColor3 = NagaxLib.Theme.Colors.Background.Secondary,
+        BorderSizePixel = 0,
+        ScrollBarThickness = 2,
+        ScrollBarImageColor3 = NagaxLib.Theme.Colors.Accent.Dark,
+        CanvasSize = UDim2.new(0, 0, 0, 0),
+        AutomaticCanvasSize = Enum.AutomaticSize.Y,
+        Parent = body
+    })
+    
+    Utils.Create("Frame", { -- Borda direita
+        Size = UDim2.new(0, 1, 1, 0),
+        Position = UDim2.new(1, -1, 0, 0),
+        BackgroundColor3 = NagaxLib.Theme.Colors.Accent.Dark,
+        BorderSizePixel = 0,
+        Parent = body
+    })
+    
+    Utils.Create("UIPadding", {
+        PaddingTop = UDim.new(0, 6),
+        PaddingBottom = UDim.new(0, 6),
+        PaddingLeft = UDim.new(0, 5),
+        PaddingRight = UDim.new(0, 5),
+        Parent = body
+    })
+    
+    Utils.Create("UIListLayout", {
+        Padding = UDim.new(0, 2),
+        SortOrder = Enum.SortOrder.LayoutOrder,
+        HorizontalAlignment = Enum.HorizontalAlignment.Center,
+        Parent = body
+    })
+    
+    -- Main Panel
+    self.MainPanel = Utils.Create("Frame", {
+        Name = "MainPanel",
+        Size = UDim2.new(1, -Config.Window.SidebarWidth, 1, 0),
+        Position = UDim2.new(0, Config.Window.SidebarWidth, 0, 0),
+        BackgroundColor3 = NagaxLib.Theme.Colors.Background.Tertiary,
+        BorderSizePixel = 0,
+        ClipsDescendants = true,
+        Parent = body
+    })
+    
+    -- Status Bar
+    local statusBar = Utils.Create("Frame", {
+        Name = "StatusBar",
+        Size = UDim2.new(1, 0, 0, Config.Window.StatusHeight),
+        Position = UDim2.new(0, 0, 1, -Config.Window.StatusHeight),
+        BackgroundColor3 = NagaxLib.Theme.Colors.Background.Secondary,
+        BorderSizePixel = 0,
+        ZIndex = 2,
+        Parent = self.Main
+    })
+    
+    Utils.Create("Frame", {
+        Size = UDim2.new(1, 0, 0, 1),
+        BackgroundColor3 = NagaxLib.Theme.Colors.Border,
+        BorderSizePixel = 0,
+        Parent = statusBar
+    })
+    
+    -- Drag System (Otimizado)
+    if self.DragEnabled then
+        local dragging = false
+        local dragStart, startPos
+        
+        self.Header.InputBegan:Connect(function(input)
+            if input.UserInputType == Enum.UserInputType.MouseButton1 or 
+               input.UserInputType == Enum.UserInputType.Touch then
+                dragging = true
+                dragStart = input.Position
+                startPos = self.Main.Position
+            end
+        end)
+        
+        Services.UserInputService.InputChanged:Connect(function(input)
+            if dragging and (input.UserInputType == Enum.UserInputType.MouseMovement or 
+                           input.UserInputType == Enum.UserInputType.Touch) then
+                local delta = input.Position - dragStart
+                self.Main.Position = UDim2.new(
+                    startPos.X.Scale, startPos.X.Offset + delta.X,
+                    startPos.Y.Scale, startPos.Y.Offset + delta.Y
+                )
+            end
+        end)
+        
+        Services.UserInputService.InputEnded:Connect(function(input)
+            if input.UserInputType == Enum.UserInputType.MouseButton1 or 
+               input.UserInputType == Enum.UserInputType.Touch then
+                dragging = false
+            end
+        end)
+    end
+    
+    -- Toggle visibilidade com RightShift
+    Services.UserInputService.InputBegan:Connect(function(input, gpe)
+        if not gpe and input.KeyCode == Enum.KeyCode.RightShift then
+            self.Gui.Enabled = not self.Gui.Enabled
+        end
+    end)
+    
+    table.insert(NagaxLib._windows, self)
+    return self
+end
+
+function Window:SelectTab(tab)
+    if self.ActiveTab == tab then return end
+    
+    if self.ActiveTab then
+        Utils.Tween(self.ActiveTab.Button, {BackgroundColor3 = NagaxLib.Theme.Colors.Background.Tertiary}, 0.15)
+        self.ActiveTab.Button.TextColor3 = NagaxLib.Theme.Colors.Text.Secondary
+        self.ActiveTab.Scroll.Visible = false
+    end
+    
+    self.ActiveTab = tab
+    Utils.Tween(tab.Button, {BackgroundColor3 = NagaxLib.Theme.Colors.Accent.Primary}, 0.15)
+    tab.Button.TextColor3 = NagaxLib.Theme.Colors.Text.Primary
+    tab.Scroll.Visible = true
+end
+
+function Window:Tab(name)
+    local tab = TabSystem:Create(self, name)
+    table.insert(self.Tabs, tab)
+    
+    if #self.Tabs == 1 then
+        self:SelectTab(tab)
+    end
+    
+    return tab
+end
+
+function Window:SetScale(scale)
+    scale = math.clamp(scale, Config.Window.MinScale, Config.Window.MaxScale)
+    self.Scale = scale
+    local newW = math.floor(Config.Window.Width * scale)
+    local newH = math.floor(Config.Window.Height * scale)
+    self.Main.Size = UDim2.new(0, newW, 0, newH)
+    self.Main.Position = UDim2.new(0.5, -newW/2, 0.5, -newH/2)
+end
+
+NagaxLib.MakeTab = function(window, name) 
+    return window:Tab(name) 
+end
+
+-- Exportação
+return NagaxLib
+

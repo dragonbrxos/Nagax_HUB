@@ -824,6 +824,36 @@ function DropdownComponent:GetValue()
     return self.Selected
 end
 
+-- :Add(item) — adiciona uma opção ao dropdown
+function DropdownComponent:Add(item)
+    item = tostring(item)
+    if not table.find(self.Options, item) then
+        table.insert(self.Options, item)
+        -- Recalcula altura
+        local ITEM_H   = 30
+        local PAD      = 8
+        local maxItems = math.min(#self.Options, 5)
+        self.TargetHeight = maxItems * ITEM_H + PAD * 2
+        if self.FloatFrame then
+            self:_PopulateOptions()
+        end
+    end
+end
+
+-- :Clear() — remove todas as opções do dropdown
+function DropdownComponent:Clear()
+    self.Options = {}
+    self.Selected = ""
+    self.ValueLabel.Text = ""
+    self.TargetHeight = 0
+    if self.FloatFrame then
+        self:_PopulateOptions()
+    end
+    if self.IsOpen then
+        self:Close()
+    end
+end
+
 function DropdownComponent:Refresh(newOptions, keepSelected)
     self.Options = newOptions or {}
     if not keepSelected or not table.find(self.Options, self.Selected) then
@@ -952,6 +982,11 @@ end
 
 function LabelComponent:SetText(text)
     self.TextLabel.Text = tostring(text)
+end
+
+-- Alias :Set() → :SetText() (compatibilidade com script)
+function LabelComponent:Set(text)
+    self:SetText(text)
 end
 
 -- SEPARATOR
@@ -1128,6 +1163,67 @@ TabSystem.Separator = TabSystem.Seperator
 
 function TabSystem:Line()
     return self:Seperator("")
+end
+
+function TabSystem:Textbox(label, clearOnFocus, callback)
+    -- Container
+    local frame = Utils.Create("Frame", {
+        Size = UDim2.new(1, 0, 0, 50),
+        BackgroundColor3 = NagaxLib.Theme.Colors.Background.Quaternary,
+        BorderSizePixel = 0,
+        Parent = self.Scroll
+    })
+    Utils.RoundCorners(frame, 7)
+    Utils.AddStroke(frame, 1, NagaxLib.Theme.Colors.Border)
+
+    -- Label
+    Utils.Create("TextLabel", {
+        Size = UDim2.new(1, -16, 0, 16),
+        Position = UDim2.new(0, 8, 0, 4),
+        BackgroundTransparency = 1,
+        Text = label or "",
+        TextColor3 = NagaxLib.Theme.Colors.Text.Secondary,
+        TextSize = 9,
+        Font = Enum.Font.Gotham,
+        TextXAlignment = Enum.TextXAlignment.Left,
+        Parent = frame
+    })
+
+    -- Input box
+    local box = Utils.Create("TextBox", {
+        Size = UDim2.new(1, -16, 0, 22),
+        Position = UDim2.new(0, 8, 0, 22),
+        BackgroundColor3 = NagaxLib.Theme.Colors.Background.Secondary,
+        BorderSizePixel = 0,
+        Text = "",
+        PlaceholderText = "Digite aqui...",
+        PlaceholderColor3 = NagaxLib.Theme.Colors.Text.Tertiary,
+        TextColor3 = NagaxLib.Theme.Colors.Text.Primary,
+        TextSize = 11,
+        Font = Enum.Font.Gotham,
+        ClearTextOnFocus = clearOnFocus == true,
+        Parent = frame
+    })
+    Utils.RoundCorners(box, 5)
+    Utils.AddStroke(box, 1, NagaxLib.Theme.Colors.Accent.Dark)
+
+    Utils.Create("UIPadding", {
+        PaddingLeft = UDim.new(0, 6),
+        Parent = box
+    })
+
+    box.FocusLost:Connect(function(enterPressed)
+        if callback then
+            callback(box.Text)
+        end
+        Utils.Tween(box, {BackgroundColor3 = NagaxLib.Theme.Colors.Background.Secondary}, 0.1)
+    end)
+
+    box.Focused:Connect(function()
+        Utils.Tween(box, {BackgroundColor3 = NagaxLib.Theme.Colors.Background.Tertiary}, 0.1)
+    end)
+
+    return frame
 end
 
 -- ── JANELA PRINCIPAL (Window) ────────────────────────────────

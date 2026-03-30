@@ -9,19 +9,19 @@ local NagaxLib = loadstring(game:HttpGet(
 ))()
 
 -- ── Criação das tabs ──────────────────────────────────────────
-local Set        = NagaxLib:Tab("Settings Farm")
+local Set        = NagaxLib:Tab("Farm")
 local Main       = NagaxLib:Tab("Auto Farm")
-local Farm       = NagaxLib:Tab("Item Quest")
-local Event      = NagaxLib:Tab("Mar Event")
-local Stats      = NagaxLib:Tab("Auto Stats")
-local Tele       = NagaxLib:Tab("World Tele")
-local Player     = NagaxLib:Tab("Player Pvp")
+local Farm       = NagaxLib:Tab("Quest/Items")
+local Event      = NagaxLib:Tab("Sea")
+local Stats      = NagaxLib:Tab("Stats")
+local Tele       = NagaxLib:Tab("Teleport")
+local Player     = NagaxLib:Tab("Player")
 local Race       = NagaxLib:Tab("Race V4")
-local Raid       = NagaxLib:Tab("Dungeon Raid")
-local DemonFruit = NagaxLib:Tab("Fruit Demon")
-local Esp        = NagaxLib:Tab("Esp Player")
-local Shop       = NagaxLib:Tab("Shopee")
-local Misc       = NagaxLib:Tab("Miscellaneous")
+local Raid       = NagaxLib:Tab("Fruits/Raid")
+local DemonFruit = NagaxLib:Tab("Visual")
+local Esp        = NagaxLib:Tab("ESP")
+local Shop       = NagaxLib:Tab("Shop")
+local Misc       = NagaxLib:Tab("Misc")
 
 -----------------------------------------------------------------------------------------------------------------------------Function
 -- Protege toda a lógica de jogo: se qualquer erro ocorrer, a UI continua funcionando
@@ -2208,7 +2208,8 @@ end)
 
 spawn(function()
 game:GetService("RunService").RenderStepped:Connect(function()
-    if _G.AutoClick or Fastattack then
+    -- Modo classic: usa VirtualUser direto
+    if (_G.AutoClick or Fastattack) and _G.AttackMode ~= "advanced" then
          pcall(function()
             game:GetService'VirtualUser':CaptureController()
             game:GetService'VirtualUser':Button1Down(Vector2.new(0,1,0,1))
@@ -4090,7 +4091,66 @@ spawn(function()
     end
 end)
 -----------------------------------------------------------------------------------------------------------------------------Setting Tab
-Set:Toggle("Fast Attck", true, function(value)
+
+-- ── Modo de ataque ativo: "classic" = sistema antigo | "advanced" = Module.FastAttack ──
+_G.AttackMode = "classic"  -- valor padrão
+
+-- ── Toggles individuais de ataque ──
+Set:Toggle("Auto Haki", true, function(value)
+    _G.AUTOHAKI = value
+end)
+
+-- Ativa/desativa o ataque completamente (seja qual for o modo)
+Set:Toggle("Auto Attack", true, function(value)
+    _G.AutoAttackEnabled = value
+end)
+
+-- Atacar mobs (usado pelo Module.FastAttack via .attackMobs)
+Set:Toggle("Attack Mobs", true, function(value)
+    _G.AttackMobsEnabled = value
+    pcall(function()
+        if _ENV.rz_module and _ENV.rz_module.FastAttack then
+            _ENV.rz_module.FastAttack.attackMobs = value
+        end
+    end)
+end)
+
+-- Atacar players (usado pelo Module.FastAttack via .attackPlayers)
+Set:Toggle("Attack Players", false, function(value)
+    _G.AttackPlayersEnabled = value
+    pcall(function()
+        if _ENV.rz_module and _ENV.rz_module.FastAttack then
+            _ENV.rz_module.FastAttack.attackPlayers = value
+        end
+    end)
+end)
+
+-- Versão do ataque: igual ao Select Weapon, troca entre os dois sistemas
+Set:Dropdown("Attack Version", {"Classic", "Advanced"}, function(value)
+    _G.AttackMode = value
+end)
+_G.AttackMode = _G.AttackMode or "Classic"
+
+-- Aplica o modo escolhido quando Auto Attack muda ou o modo muda
+spawn(function()
+    while task.wait(0.1) do
+        pcall(function()
+            if _G.AttackMode == "Classic" then
+                -- Classic: usa _G.AutoClick + Fastattack (VirtualUser)
+                _G.AutoClick = _G.AutoAttackEnabled
+                getgenv().Settings = getgenv().Settings or {}
+                getgenv().Settings.AutoClick = false
+            elseif _G.AttackMode == "Advanced" then
+                -- Advanced: usa Module.FastAttack via Settings.AutoClick
+                _G.AutoClick = false
+                getgenv().Settings = getgenv().Settings or {}
+                getgenv().Settings.AutoClick = _G.AutoAttackEnabled
+            end
+        end)
+    end
+end)
+
+Set:Toggle("Fast Attack", true, function(value)
     _G.FastAttack = value
     StopTween(_G.FastAttack)
 end
@@ -4405,9 +4465,8 @@ spawn(function()
     end
 end)
 
-Set:Toggle("Auto Turn On Buso Haki", true, function(value)
-    _G.AUTOHAKI = value
-end)
+-- Auto Haki foi movido para o topo do tab Farm (Set)
+-- O loop de Auto Haki fica aqui
 spawn(function()
     while wait(.1) do
         if _G.AUTOHAKI then 
@@ -10030,6 +10089,12 @@ end)
 		game:GetService("ReplicatedStorage").Remotes.CommF_:InvokeServer(unpack(args))
 	end)
 -----------------------------------------------------------------------------------------------------------------------------Misc Tab
+
+-- ── Controle de altura do personagem durante o farm (PosY) ──
+-- O personagem fica acima dos inimigos para atacar à distância sem receber dano
+Misc:Slider("Farm Height (PosY)", 0, 150, 35, function(value)
+    PosY = value
+end)
 
 Misc:Button("Fruit Rain [ Old ]", function()
     for i, v in pairs(game:GetObjects("rbxassetid://14759368201")[1]:GetChildren()) do

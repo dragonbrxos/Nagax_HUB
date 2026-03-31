@@ -1,8 +1,5 @@
 local NagaxLib = {}
 
--- ════════════════════════════════════════════════════════════════
--- CONFIGURACAO INTERNA DA BIBLIOTECA
--- ════════════════════════════════════════════════════════════════
 local _hubConfig = {
     hubName          = "NagaxLib",
     gameName         = "",

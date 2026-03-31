@@ -1,5 +1,34 @@
 local NagaxLib = {}
 
+-- ════════════════════════════════════════════════════════════════
+-- CONFIGURACAO INTERNA DA BIBLIOTECA
+-- ════════════════════════════════════════════════════════════════
+local _hubConfig = {
+    hubName          = "NagaxLib",
+    gameName         = "",
+    version          = "1.0",
+    selectiveButtons = false,  -- true = respeita o campo 'enabled' de cada elemento
+}
+
+-- Controle dinamico de mares
+local _currentTeleport  = nil   -- nil = sem filtro ativo
+local _teleportElements = {}    -- { frame, seas={...} } registrados para atualizar ao SetSea
+local _teleportStatusLbl = nil  -- label da status bar (atribuido apos criacao)
+
+local function _refreshTeleportVisibility()
+    for _, entry in ipairs(_teleportElements) do
+        if _currentTeleport == nil then
+            entry.frame.Visible = true
+        else
+            local allowed = false
+            for _, s in ipairs(entry.teleports) do
+                if s == _currentTeleport then allowed = true; break end
+            end
+            entry.frame.Visible = allowed
+        end
+    end
+end
+
 local lp        = game:GetService("Players").LocalPlayer
 local uis       = game:GetService("UserInputService")
 local ts        = game:GetService("TweenService")
@@ -390,7 +419,7 @@ local function makeStatusItem(txt, dotColor)
 end
 
 makeStatusItem("Script OK", C.on)
-makeStatusItem("Sea 2",     Color3.fromRGB(230,160,32))
+_teleportStatusLbl = makeStatusItem("Loc: --", Color3.fromRGB(230,160,32))
 local stDragLbl = makeStatusItem("Drag: OFF", nil)
 
 local stVersion = Instance.new("TextLabel")
@@ -801,6 +830,63 @@ cpToggleRow(optSection, "Rainbow Yoru", false, function(v)
     RainbowYoru = v
 end)
 
+-- ════════════════════════════════════════════════════════════════
+-- REGISTER HUB
+-- ════════════════════════════════════════════════════════════════
+--[[
+    NagaxLib:RegisterHub({
+        hubName          = "MeuHub",     -- nome exibido no header
+        gameName         = "BloxFruits", -- jogo exibido no header
+        version          = "1.0",        -- versao na status bar
+        selectiveButtons = true,         -- true = respeita 'enabled' nos elementos
+        teleport         = 1,            -- (opcional) define o teleporte inicial
+    })
+
+    ── SetSea(id) ────────────────────────────────────────────────
+    NagaxLib:SetSea(id)  →  atualiza a UI dinamicamente ao mudar de mar.
+    Elementos com  opts.teleports = {1,2}  aparecem so nesses mares.
+    Elementos sem  seas  aparecem em todos os mares (universais).
+
+    ── Uso nos elementos ─────────────────────────────────────────
+    -- Sempre visivel (universal)
+    Tab:Toggle("Auto Farm", false, callback)
+
+    -- So aparece se BUTTONS.AutoFarm == true  (requer selectiveButtons=true)
+    Tab:Toggle("Auto Farm", false, callback, { enabled = BUTTONS.AutoFarm })
+
+    -- So aparece no teleporte 1
+    Tab:Toggle("Boss X", false, callback, { teleport = 1 })
+
+    -- So aparece no teleporte 2, e so se o enabled for true
+    Tab:Button("Tp Y", callback, { teleport = 2, enabled = BUTTONS.TpY })
+
+    -- Separator/Line tambem suportam teleport e enabled
+    Tab:Separator("Bosses", { teleport = 1 })
+]]
+function NagaxLib:RegisterHub(cfg)
+    cfg = cfg or {}
+    if cfg.hubName          ~= nil then _hubConfig.hubName          = cfg.hubName          end
+    if cfg.gameName         ~= nil then _hubConfig.gameName         = cfg.gameName         end
+    if cfg.version          ~= nil then _hubConfig.version          = cfg.version          end
+    if cfg.selectiveButtons ~= nil then _hubConfig.selectiveButtons = cfg.selectiveButtons end
+    titleL.Text    = _hubConfig.hubName
+    gameL.Text     = _hubConfig.gameName
+    stVersion.Text = "v" .. tostring(_hubConfig.version) .. "  |  RightShift = toggle"
+    if cfg.teleport ~= nil then self:SetTeleport(cfg.teleport) end
+end
+
+function NagaxLib:SetTeleport(id)
+    _currentTeleport = id
+    _refreshTeleportVisibility()
+    if _teleportStatusLbl then
+        _teleportStatusLbl.Text = "Loc: " .. tostring(id)
+    end
+end
+
+function NagaxLib:GetTeleport()
+    return _currentTeleport
+end
+
 -- ── Sistema de tabs ───────────────────────────────────────────
 local tabs      = {}
 local activeTab = nil
@@ -884,6 +970,38 @@ function NagaxLib:Tab(name)
 
     local tabObj = {_btn=btn, _scroll=scroll, _order=0}
 
+    -- ── Helpers de visibilidade ───────────────────────────────
+    -- opts = { enabled = bool, teleport = number, teleports = {n,...} }
+    -- 'teleport' e um atalho para 'teleports = {n,...}'
+
+    local function shouldShow(opts)
+        opts = opts or {}
+        -- Normaliza: teleport = 2  →  teleports = {2}
+        if opts.teleport ~= nil and opts.teleports == nil then
+            opts.teleports = { opts.teleport }
+        end
+        -- Se selectiveButtons ativo, respeita o campo enabled
+        if _hubConfig.selectiveButtons and opts.enabled == false then
+            return false, opts
+        end
+        return true, opts
+    end
+
+    local function registerSeaFrame(frame, opts)
+        opts = opts or {}
+        if opts.teleports and #opts.teleports > 0 then
+            table.insert(_teleportElements, { frame = frame, seas = opts.teleports })
+            -- Aplica visibilidade imediata com base no mar atual
+            if _currentTeleport ~= nil then
+                local allowed = false
+                for _, s in ipairs(opts.teleports) do
+                    if s == _currentTeleport then allowed = true; break end
+                end
+                frame.Visible = allowed
+            end
+        end
+    end
+
     local function nextOrder()
         tabObj._order = tabObj._order + 1
         return tabObj._order
@@ -907,8 +1025,11 @@ function NagaxLib:Tab(name)
     end
 
     -- ── SEPARATOR ────────────────────────────────────────────
-    function tabObj:Seperator(text)
+    function tabObj:Seperator(text, opts)
+        local ok, opts = shouldShow(opts)
+        if not ok then return end
         local f = Instance.new("Frame")
+        registerSeaFrame(f, opts)
         f.Size                  = UDim2.new(1,0,0,26)
         f.BackgroundTransparency= 1
         f.BorderSizePixel       = 0
@@ -943,8 +1064,11 @@ function NagaxLib:Tab(name)
     tabObj.Separator = tabObj.Seperator
 
     -- ── LINE ─────────────────────────────────────────────────
-    function tabObj:Line()
+    function tabObj:Line(opts)
+        local ok, opts = shouldShow(opts)
+        if not ok then return end
         local f = Instance.new("Frame")
+        registerSeaFrame(f, opts)
         f.Size                  = UDim2.new(1,0,0,8)
         f.BackgroundTransparency= 1
         f.BorderSizePixel       = 0
@@ -960,9 +1084,12 @@ function NagaxLib:Tab(name)
     end
 
     -- ── TOGGLE ───────────────────────────────────────────────
-    function tabObj:Toggle(labelText, default, callback)
+    function tabObj:Toggle(labelText, default, callback, opts)
+        local ok, opts = shouldShow(opts)
+        if not ok then return { SetValue = function() end } end
         local state = (default == true)
         local row   = makeRow(34)
+        registerSeaFrame(row, opts)
 
         local lbl = Instance.new("TextLabel")
         lbl.Size                  = UDim2.new(1,-52,1,0)
@@ -1020,8 +1147,11 @@ function NagaxLib:Tab(name)
     end
 
     -- ── BUTTON ───────────────────────────────────────────────
-    function tabObj:Button(labelText, callback)
+    function tabObj:Button(labelText, callback, opts)
+        local ok, opts = shouldShow(opts)
+        if not ok then return end
         local row = makeRow(34)
+        registerSeaFrame(row, opts)
 
         local b = Instance.new("TextButton")
         b.Size             = UDim2.new(1,-16,0,26)
@@ -1047,8 +1177,11 @@ function NagaxLib:Tab(name)
     end
 
     -- ── LABEL ────────────────────────────────────────────────
-    function tabObj:Label(text)
+    function tabObj:Label(text, opts)
+        local ok, opts = shouldShow(opts)
+        if not ok then return { Set = function() end, Text = "" } end
         local row = makeRow(20, true)
+        registerSeaFrame(row, opts)
 
         local lbl = Instance.new("TextLabel")
         lbl.Size                  = UDim2.new(1,-10,1,0)
@@ -1076,15 +1209,20 @@ function NagaxLib:Tab(name)
 
     -- ── SLIDER (corrigido: nao arrasta janela) ────────────────
     function tabObj:Slider(labelText, minV, maxV, default, arg5, arg6)
-        local callback
+        local callback, opts
         if type(arg5) == "function" then callback = arg5
-        elseif type(arg6) == "function" then callback = arg6 end
+        elseif type(arg5) == "table" then opts = arg5 end
+        if type(arg6) == "function" then callback = arg6
+        elseif type(arg6) == "table" then opts = arg6 end
+        local ok, opts = shouldShow(opts)
+        if not ok then return end
         minV  = minV or 0
         maxV  = maxV or 100
         local value = math.clamp(default or minV, minV, maxV)
         local range = math.max(maxV - minV, 1)
 
         local row = makeRow(50)
+        registerSeaFrame(row, opts)
 
         local lbl = Instance.new("TextLabel")
         lbl.Size                  = UDim2.new(1,-10,0,18)
@@ -1180,7 +1318,9 @@ function NagaxLib:Tab(name)
     end
 
     -- ── DROPDOWN ─────────────────────────────────────────────
-    function tabObj:Dropdown(labelText, options, callback)
+    function tabObj:Dropdown(labelText, options, callback, opts)
+        local ok, opts = shouldShow(opts)
+        if not ok then return { Refresh=function()end, Clear=function()end, Add=function()end } end
         options  = options or {}
         local selected = tostring(options[1] or "")
         local open     = false
@@ -1196,6 +1336,7 @@ function NagaxLib:Tab(name)
         container.Parent           = scroll
         corner(container, 7)
         stroke(container, 1, C.bdr)
+        registerSeaFrame(container, opts)
 
         local hdrDD = Instance.new("TextButton")
         hdrDD.Size                   = UDim2.new(1,0,0,34)
@@ -1312,8 +1453,11 @@ function NagaxLib:Tab(name)
     end
 
     -- ── TEXTBOX ──────────────────────────────────────────────
-    function tabObj:TextBox(labelText, callback, clearOnFocus)
+    function tabObj:TextBox(labelText, callback, clearOnFocus, opts)
+        local ok, opts = shouldShow(opts)
+        if not ok then return end
         local row = makeRow(50)
+        registerSeaFrame(row, opts)
 
         local lbl = Instance.new("TextLabel")
         lbl.Size                  = UDim2.new(1,-10,0,18)
@@ -1369,3 +1513,4 @@ function NagaxLib:Tab(name)
 end
 
 return NagaxLib
+

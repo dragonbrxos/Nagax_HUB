@@ -8,6 +8,25 @@ local NagaxLib = loadstring(game:HttpGet(
     true
 ))()
 
+-- Detecta o mundo atual pelo PlaceId
+local _currentWorld = 1
+if game.PlaceId == 2753915549 then
+    _currentWorld = 1
+elseif game.PlaceId == 4442272183 then
+    _currentWorld = 2
+elseif game.PlaceId == 7449423635 then
+    _currentWorld = 3
+end
+
+-- Registra o hub e define o teleporte inicial com base no mundo
+NagaxLib:RegisterHub({
+    hubName          = "Nagax_HUB",
+    gameName         = "BloxFruits",
+    version          = "5.0",
+    selectiveButtons = false,
+    teleport         = _currentWorld,
+})
+
 -- ── Criação das tabs ──────────────────────────────────────────
 local Set        = NagaxLib:Tab("Farm")
 local Main       = NagaxLib:Tab("Auto Farm")
@@ -2508,6 +2527,8 @@ spawn(function()
 end)
 
 if World1 then
+    Main:Seperator("Farm Rapido Mar 1", { teleport = 1 })
+
     Main:Toggle("Auto Farm Level Fast [1 -> 300]", false, function(value)
         _G.Farmfast = value
         StopTween(_G.Farmfast)
@@ -2622,7 +2643,7 @@ spawn(function()
 	end
 end)
 
-Main:Seperator("Cake Farm")
+Main:Seperator("Cake Farm", { teleport = 3 })
 
 local MobKilled = Main:Label("")
 spawn(function()
@@ -2983,7 +3004,7 @@ Main:Toggle("Auto Spawn Cake Prince", true, function(value)
     game:GetService("ReplicatedStorage").Remotes.CommF_:InvokeServer("CakePrinceSpawner",value)
 end)
 
-Main:Seperator("Bone Farm")
+Main:Seperator("Bone Farm", { teleport = 3 })
 
 BoneCheck = Main:Label("")
 spawn(function()
@@ -3711,6 +3732,9 @@ spawn(function()
     end)
 end)
 
+
+Main:Seperator("Mastery de Arma", { teleport = _currentWorld })
+
 Main:Toggle("Auto Farm Gun Mastery", false, function(value)
     _G.AutoFarmGunMastery = value
     StopTween(_G.AutoFarmGunMastery)
@@ -3925,7 +3949,7 @@ end
 
 local BossName = Main:Dropdown("Select Boss", bossCheck, function(value)
     _G.SelectBoss = value
-end)
+end, { teleport = _currentWorld })
 
 Main:Button("Refresh Boss List", function()
     BossName:Clear()
@@ -3938,7 +3962,7 @@ Main:Button("Refresh Boss List", function()
             BossName:Add(v.Name)
         end
     end
-end)
+end, { teleport = _currentWorld })
 
 Main:Toggle("Auto Farm Selected Boss", false, function(value)
     game:GetService("ReplicatedStorage").Remotes.CommF_:InvokeServer("AbandonQuest")
@@ -4057,12 +4081,12 @@ end
 
 Main:Dropdown("Select Monster", tableMon, function(value)
     _G.SelectMob = value
-end)
+end, { teleport = _currentWorld })
 
 Main:Toggle("Auto Farm Selected Monster", false, function(value)
     _G.AutoFarmMob = value
     StopTween(_G.AutoFarmMob)
-end)
+end, { teleport = _currentWorld })
 spawn(function()
     while wait() do
         if _G.AutoFarmMob then
@@ -4099,6 +4123,19 @@ end)
 -----------------------------------------------------------------------------------------------------------------------------Setting Tab
 
 -- ── Controles de ataque ──
+-- Botoes para alternar o mar manualmente (util se detectado errado)
+Set:Seperator("Selecionar Mar")
+Set:Button("Mar 1  [Lv 1 - 700]", function()
+    NagaxLib:SetTeleport(1)
+end)
+Set:Button("Mar 2  [Lv 700 - 1500]", function()
+    NagaxLib:SetTeleport(2)
+end)
+Set:Button("Mar 3  [Lv 1500+]", function()
+    NagaxLib:SetTeleport(3)
+end)
+Set:Seperator("Configuracoes de Farm")
+
 Set:Toggle("Auto Haki", true, function(value)
     _G.AUTOHAKI = value
 end)
@@ -4991,6 +5028,8 @@ spawn(function()
     end
 end)
 
+Farm:Seperator("Exclusivo Mar 2", { teleport = 2 })
+
 Farm:Toggle("Auto Factory", false, function(value)
     _G.AutoFactory = value
     StopTween(_G.AutoFactory)
@@ -5057,6 +5096,8 @@ spawn(function()
         end
     end
 end)
+
+Farm:Seperator("Exclusivo Mar 3", { teleport = 3 })
 
 Farm:Toggle("Auto Soul Guitar", false, function(value)
     _G.AutoNevaSoulGuitar = value    
@@ -5244,6 +5285,9 @@ spawn(function()
     end
 end)
 
+
+Farm:Seperator("Mar 2 / Acesso Mar 3", { teleport = 2 })
+
 Farm:Toggle("Auto Kill Rip_Indra", false, function(value)
     _G.AutoDarkDagger = value
     StopTween(_G.AutoDarkDagger)
@@ -5295,6 +5339,9 @@ spawn(function()
         end
     end)
 end)
+
+
+Farm:Seperator("Exclusivo Mar 1", { teleport = 1 })
 
 Farm:Toggle("Auto Press Haki Button", false, function(value)
 	Open_Color_Haki = value
@@ -5629,6 +5676,9 @@ spawn(function()
     end)
 end)
 
+
+Farm:Seperator("Evolucao de Raca - Mar 2", { teleport = 2 })
+
 Farm:Toggle("Auto Evo Race V2", false, function(value)
     _G.Auto_EvoRace = value
     StopTween(_G.Auto_EvoRace)
@@ -5682,6 +5732,9 @@ spawn(function()
         end
     end)
 end)
+
+
+Farm:Seperator("Bartilo / Mar 3", { teleport = 3 })
 
 Farm:Toggle("Auto Bartilo Quest", false, function(value)
     _G.AutoBartilo = value
@@ -5817,7 +5870,7 @@ spawn(function()
     end
 end)
 
-Farm:Seperator("Elite Hunter")
+Farm:Seperator("Elite Hunter", { teleport = 3 })
 
 local Elite_Hunter_Status = Farm:Label("")
 spawn(function()
@@ -6142,6 +6195,8 @@ end)
 
 Farm:Seperator("Auto Material")
 
+Farm:Seperator("Materiais Mar 1", { teleport = 1 })
+
 Farm:Toggle("Auto Farm Radioactive", false, function(value)
     Radioactive = value
     StopTween(Radioactive)
@@ -6195,6 +6250,9 @@ spawn(function()
         end
     end
 end)
+
+
+Farm:Seperator("Materiais Mar 2", { teleport = 2 })
 
 Farm:Toggle("Auto Farm Mystic Droplet", false, function(value)
     _G.Makori_gay = value
@@ -6711,6 +6769,9 @@ spawn(function()
     end
 end)
 
+
+Farm:Seperator("Materiais Mar 3", { teleport = 3 })
+
 Farm:Toggle("Auto Farm Conjured Cocoa", false, function(value)
     Cocoafarm = value
     StopTween(Cocoafarm)
@@ -7027,6 +7088,8 @@ end)
 
 Farm:Seperator("Auto Sword")
 
+Farm:Seperator("Espadas Mar 1", { teleport = 1 })
+
 Farm:Toggle("Auto Buddy Sword", false, function(value)
     _G.AutoBudySword = value
     StopTween(_G.AutoBudySword)
@@ -7078,6 +7141,9 @@ spawn(function()
         end
     end
 end)
+
+
+Farm:Seperator("Espadas Mar 2", { teleport = 2 })
 
 Farm:Toggle("Auto Cursed Dual Katana", false, function(value)
     Auto_Cursed_Dual_Katana = value
@@ -7510,6 +7576,9 @@ spawn(function()
         end
     end
 end)
+
+
+Farm:Seperator("Espadas Mar 3", { teleport = 3 })
 
 Farm:Toggle("Auto Tushita", false, function(value)
     _G.Autotushita = value
